@@ -10,6 +10,8 @@ public static class ApplicationServiceRegistration
     {
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IQuizService, QuizService>();
+        services.AddScoped<IGameCodeGenerator, GameCodeGenerator>();
+        services.AddScoped<IGameSessionService, GameSessionService>();
         return services;
     }
 }

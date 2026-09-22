@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using QuizPlatform.Application.DTOs.Auth;
 using QuizPlatform.Application.Interfaces;
 using QuizPlatform.Domain.Entities;
+using QuizPlatform.Domain.Enums;
 
 namespace QuizPlatform.Application.Services;
 
@@ -59,5 +60,43 @@ public class AuthService : IAuthService
     public Task<AuthResponseDto> RefreshTokenAsync(string refreshToken)
     {
         throw new NotImplementedException();
+    }
+
+    public async Task<AuthResponseDto> JoinGameAsync(PlayerJoinRequestDto request)
+    {
+        var gameCode = request.GameCode.ToUpperInvariant();
+        var session = await _context.GameSessions
+            .FirstOrDefaultAsync(s => s.GameCode == gameCode && 
+                (s.Status == Domain.Enums.GameSessionStatus.Lobby || s.Status == Domain.Enums.GameSessionStatus.Running));
+                
+        if (session == null) throw new InvalidOperationException("Game not found or finished.");
+
+        // Nickname uniqueness check
+        var nickname = request.Nickname.Trim();
+        var existingParticipant = await _context.GameParticipants
+            .FirstOrDefaultAsync(p => p.GameSessionId == session.Id && p.Nickname == nickname);
+
+        if (existingParticipant != null)
+        {
+            // Plan decision: Block duplicate nicknames with clear error
+            throw new InvalidOperationException("Nickname already taken in this game session.");
+        }
+
+        var participant = new GameParticipant
+        {
+            Id = Guid.NewGuid(),
+            GameSessionId = session.Id,
+            Nickname = nickname,
+            SessionToken = Guid.NewGuid().ToString("N"),
+            TotalScore = 0,
+            JoinedAt = DateTime.UtcNow,
+            IsConnected = false
+        };
+
+        _context.GameParticipants.Add(participant);
+        await _context.SaveChangesAsync(default);
+
+        var token = _jwtProvider.GeneratePlayerToken(participant);
+        return new AuthResponseDto { Token = token };
     }
 }

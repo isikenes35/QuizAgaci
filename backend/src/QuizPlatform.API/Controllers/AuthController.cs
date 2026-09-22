@@ -45,6 +45,20 @@ public class AuthController : ControllerBase
         }
     }
 
+    [HttpPost("join-game")]
+    public async Task<IActionResult> JoinGame([FromBody] PlayerJoinRequestDto request)
+    {
+        try
+        {
+            var result = await _authService.JoinGameAsync(request);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { Message = ex.Message });
+        }
+    }
+
     [HttpGet("me")]
     public IActionResult GetMe()
     {

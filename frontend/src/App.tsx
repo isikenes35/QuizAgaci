@@ -12,6 +12,8 @@ import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import CreateQuizPage from './pages/CreateQuizPage';
 import EditQuizPage from './pages/EditQuizPage';
+import GameLobbyPage from './pages/GameLobbyPage';
+import HostGamePage from './pages/HostGamePage';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading } = useAuthStore();
@@ -42,6 +44,9 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         
+        {/* Player Routes */}
+        <Route path="/game/:code/lobby" element={<GameLobbyPage />} />
+        
         {/* Protected Creator Routes */}
         <Route path="/dashboard" element={
           <ProtectedRoute>
@@ -51,6 +56,7 @@ function App() {
           <Route index element={<DashboardPage />} />
           <Route path="create" element={<CreateQuizPage />} />
           <Route path="editor/:id" element={<EditQuizPage />} />
+          <Route path="host/:id" element={<HostGamePage />} />
         </Route>
       </Routes>
     </BrowserRouter>
