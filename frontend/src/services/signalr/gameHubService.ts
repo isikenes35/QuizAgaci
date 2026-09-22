@@ -35,6 +35,22 @@ class GameHubService {
   public onPlayerJoined(callback: (participant: any) => void) {
     this.connection?.on('PlayerJoined', callback);
   }
+
+  public onQuestionStarted(callback: (data: any) => void) {
+    this.connection?.on('QuestionStarted', callback);
+  }
+
+  public onTimerTick(callback: (data: { remainingSeconds: number }) => void) {
+    this.connection?.on('TimerTick', callback);
+  }
+
+  public onQuestionFinished(callback: () => void) {
+    this.connection?.on('QuestionFinished', callback);
+  }
+
+  public onAnswerSubmitted(callback: (data: any) => void) {
+    this.connection?.on('AnswerSubmitted', callback);
+  }
 }
 
 export const gameHubService = new GameHubService();

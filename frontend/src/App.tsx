@@ -13,6 +13,7 @@ import DashboardPage from './pages/DashboardPage';
 import CreateQuizPage from './pages/CreateQuizPage';
 import EditQuizPage from './pages/EditQuizPage';
 import GameLobbyPage from './pages/GameLobbyPage';
+import PlayerGamePage from './pages/PlayerGamePage';
 import HostGamePage from './pages/HostGamePage';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -46,6 +47,7 @@ function App() {
         
         {/* Player Routes */}
         <Route path="/game/:code/lobby" element={<GameLobbyPage />} />
+        <Route path="/game/:code/play" element={<PlayerGamePage />} />
         
         {/* Protected Creator Routes */}
         <Route path="/dashboard" element={

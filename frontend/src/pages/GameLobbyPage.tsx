@@ -1,12 +1,13 @@
 import { useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useGameStore } from '../stores/gameStore';
 import { gameHubService } from '../services/signalr/gameHubService';
 import { getSessionByCode } from '../services/api/gameApi';
 
 export default function GameLobbyPage() {
   const { code } = useParams<{ code: string }>();
-  const { setSession } = useGameStore();
+  const navigate = useNavigate();
+  const { setSession, setCurrentQuestion, isQuestionActive } = useGameStore();
 
   useEffect(() => {
     const token = localStorage.getItem('playerToken');
@@ -21,13 +22,21 @@ export default function GameLobbyPage() {
 
     // Connect to SignalR
     gameHubService.connect(token).then(() => {
-      // Could send a 'PlayerReady' message if needed
+      gameHubService.onQuestionStarted((data) => {
+        setCurrentQuestion(data.questionDto, data.timeLimit);
+      });
     });
 
     return () => {
       gameHubService.disconnect();
     };
-  }, [code, setSession]);
+  }, [code, setSession, setCurrentQuestion]);
+
+  useEffect(() => {
+    if (isQuestionActive) {
+      navigate(`/game/${code}/play`);
+    }
+  }, [isQuestionActive, navigate, code]);
 
   return (
     <div className="min-h-screen bg-primary-500 flex flex-col items-center justify-center p-4">

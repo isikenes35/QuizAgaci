@@ -24,6 +24,11 @@ builder.Services.AddSignalR();
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
 
+// Add local services
+builder.Services.AddScoped<QuizPlatform.Application.Interfaces.ISignalRNotifier, QuizPlatform.API.Services.SignalRNotifier>();
+builder.Services.AddSingleton<QuizPlatform.Application.Interfaces.IGameTimerService, QuizPlatform.API.Services.GameTimerService>();
+builder.Services.AddHostedService(provider => (QuizPlatform.API.Services.GameTimerService)provider.GetRequiredService<QuizPlatform.Application.Interfaces.IGameTimerService>());
+
 // Add CORS
 builder.Services.AddCors(options =>
 {

@@ -12,6 +12,8 @@ public static class ApplicationServiceRegistration
         services.AddScoped<IQuizService, QuizService>();
         services.AddScoped<IGameCodeGenerator, GameCodeGenerator>();
         services.AddScoped<IGameSessionService, GameSessionService>();
+        services.AddScoped<IScoringService, ScoringService>();
+        services.AddScoped<IAnswerService, AnswerService>();
         return services;
     }
 }
