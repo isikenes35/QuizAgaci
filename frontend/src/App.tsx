@@ -10,6 +10,8 @@ import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
+import CreateQuizPage from './pages/CreateQuizPage';
+import EditQuizPage from './pages/EditQuizPage';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading } = useAuthStore();
@@ -40,8 +42,6 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         
-        {/* Player Routes (to be added later) */}
-        
         {/* Protected Creator Routes */}
         <Route path="/dashboard" element={
           <ProtectedRoute>
@@ -49,7 +49,8 @@ function App() {
           </ProtectedRoute>
         }>
           <Route index element={<DashboardPage />} />
-          {/* Dashboard nested routes */}
+          <Route path="create" element={<CreateQuizPage />} />
+          <Route path="editor/:id" element={<EditQuizPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

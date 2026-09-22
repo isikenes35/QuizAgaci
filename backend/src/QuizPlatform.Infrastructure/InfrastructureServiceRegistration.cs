@@ -23,6 +23,7 @@ public static class InfrastructureServiceRegistration
         services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<ApplicationDbContext>());
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IJwtProvider, JwtProvider>();
+        services.AddScoped<IFileStorageService, FileStorageService>();
 
         return services;
     }

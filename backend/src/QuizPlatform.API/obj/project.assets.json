@@ -1324,7 +1324,10 @@
         },
         "runtime": {
           "bin/placeholder/QuizPlatform.Infrastructure.dll": {}
-        }
+        },
+        "frameworkReferences": [
+          "Microsoft.AspNetCore.App"
+        ]
       }
     }
   },
