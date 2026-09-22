@@ -4,7 +4,7 @@ import { gameHubService } from '../services/signalr/gameHubService';
 import api from '../services/api/axiosConfig';
 
 export default function PlayerGamePage() {
-  const { currentQuestion, timeRemaining, updateTimer, endQuestion, isQuestionActive, session, questionResults, setQuestionResults } = useGameStore();
+  const { currentQuestion, timeRemaining, updateTimer, endQuestion, isQuestionActive, session, questionResults, setQuestionResults, needsManualReview, setNeedsManualReview } = useGameStore();
 
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [textAnswer] = useState('');
@@ -23,7 +23,15 @@ export default function PlayerGamePage() {
       setQuestionResults(data);
     });
 
-  }, [updateTimer, endQuestion, setQuestionResults]);
+    gameHubService.onManualReviewRequired(() => {
+      setNeedsManualReview(true);
+    });
+
+    gameHubService.onGameResumed(() => {
+      setNeedsManualReview(false);
+    });
+
+  }, [updateTimer, endQuestion, setQuestionResults, setNeedsManualReview]);
 
   const handleSubmit = async () => {
     if (!session || !currentQuestion) return;
@@ -80,6 +88,11 @@ export default function PlayerGamePage() {
           <div className="flex-1 flex flex-col items-center justify-center text-center">
             <h2 className="text-3xl font-bold text-gray-800">Time's Up!</h2>
             <p className="text-gray-500 mt-2">Waiting for everyone else...</p>
+          </div>
+        ) : submitted && needsManualReview ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-center">
+            <h2 className="text-3xl font-bold text-gray-800">⏳ Cevaplar değerlendiriliyor...</h2>
+            <p className="text-gray-500 mt-2">The host is manually reviewing the answers. Please wait.</p>
           </div>
         ) : submitted ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center">

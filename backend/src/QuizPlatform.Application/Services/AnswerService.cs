@@ -107,4 +107,48 @@ public class AnswerService : IAnswerService
 
         return new AnswerResponseDto { Success = true, Message = "Answer submitted", AnswerId = answer.Id };
     }
+
+    public async Task<IEnumerable<PendingAnswerDto>> GetPendingAnswersAsync(Guid sessionId, Guid hostUserId)
+    {
+        var session = await _context.GameSessions.FirstOrDefaultAsync(s => s.Id == sessionId && s.HostUserId == hostUserId);
+        if (session == null) throw new InvalidOperationException("Session not found or forbidden");
+
+        return await _context.Answers
+            .Include(a => a.Participant)
+            .Where(a => a.GameSessionId == sessionId && a.QuestionId == session.CurrentQuestionId && a.ReviewStatus == AnswerReviewStatus.Pending)
+            .Select(a => new PendingAnswerDto
+            {
+                AnswerId = a.Id,
+                Nickname = a.Participant.Nickname,
+                TextAnswer = a.TextAnswer
+            })
+            .ToListAsync();
+    }
+
+    public async Task ReviewAnswerAsync(Guid answerId, Guid hostUserId, ReviewAnswerDto dto)
+    {
+        var answer = await _context.Answers
+            .Include(a => a.GameSession)
+            .Include(a => a.Participant)
+            .FirstOrDefaultAsync(a => a.Id == answerId && a.GameSession.HostUserId == hostUserId);
+
+        if (answer == null) throw new InvalidOperationException("Answer not found");
+        if (answer.ReviewStatus != AnswerReviewStatus.Pending) throw new InvalidOperationException("Answer is not pending review");
+
+        answer.IsCorrect = dto.IsCorrect;
+        answer.ScoreAwarded = dto.ScoreAwarded;
+        answer.ReviewStatus = dto.IsCorrect ? AnswerReviewStatus.Approved : AnswerReviewStatus.Rejected;
+        
+        answer.Participant.TotalScore += dto.ScoreAwarded;
+
+        await _context.SaveChangesAsync(default);
+    }
+
+    public async Task ResumeFromReviewAsync(Guid sessionId, Guid hostUserId)
+    {
+        var session = await _context.GameSessions.FirstOrDefaultAsync(s => s.Id == sessionId && s.HostUserId == hostUserId);
+        if (session == null) throw new InvalidOperationException("Session not found");
+
+        await _notifier.NotifyGameResumedAsync(sessionId);
+    }
 }

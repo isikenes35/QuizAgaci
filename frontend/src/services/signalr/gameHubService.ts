@@ -59,6 +59,14 @@ class GameHubService {
   public onShowQuestionResults(callback: (data: any) => void) {
     this.connection?.on('ShowQuestionResults', callback);
   }
+
+  public onManualReviewRequired(callback: () => void) {
+    this.connection?.on('ManualReviewRequired', callback);
+  }
+
+  public onGameResumed(callback: () => void) {
+    this.connection?.on('GameResumed', callback);
+  }
 }
 
 export const gameHubService = new GameHubService();

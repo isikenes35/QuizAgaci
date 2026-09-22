@@ -14,4 +14,7 @@ public interface ISignalRNotifier
     
     Task NotifyLeaderboardUpdatedAsync(Guid sessionId, List<LeaderboardEntryDto> leaderboard);
     Task NotifyShowQuestionResultsAsync(Guid sessionId, object resultsData);
+    
+    Task NotifyManualReviewRequiredAsync(Guid sessionId);
+    Task NotifyGameResumedAsync(Guid sessionId);
 }

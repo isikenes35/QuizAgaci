@@ -44,4 +44,14 @@ public class SignalRNotifier : ISignalRNotifier
     {
         await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("ShowQuestionResults", resultsData);
     }
+
+    public async Task NotifyManualReviewRequiredAsync(Guid sessionId)
+    {
+        await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("ManualReviewRequired");
+    }
+
+    public async Task NotifyGameResumedAsync(Guid sessionId)
+    {
+        await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("GameResumed");
+    }
 }

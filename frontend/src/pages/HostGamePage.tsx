@@ -3,14 +3,17 @@ import { useParams } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { useGameStore } from '../stores/gameStore';
 import { getSessionById, getParticipants } from '../services/api/gameApi';
+import { getPendingAnswers, reviewAnswer, resumeFromReview } from '../services/api/answerApi';
+import type { PendingAnswer } from '../types/answer.types';
 import { gameHubService } from '../services/signalr/gameHubService';
 import api from '../services/api/axiosConfig';
 
 export default function HostGamePage() {
   const { id } = useParams<{ id: string }>();
-  const { session, setSession, participants, setParticipants, addParticipant, isQuestionActive, leaderboard, setLeaderboard } = useGameStore();
+  const { session, setSession, participants, setParticipants, addParticipant, currentQuestion, isQuestionActive, leaderboard, setLeaderboard, setNeedsManualReview } = useGameStore();
 
-  const [viewState, setViewState] = useState<'lobby' | 'question' | 'leaderboard'>('lobby');
+  const [viewState, setViewState] = useState<'lobby' | 'question' | 'leaderboard' | 'review'>('lobby');
+  const [pendingAnswers, setPendingAnswers] = useState<PendingAnswer[]>([]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -29,12 +32,50 @@ export default function HostGamePage() {
       gameHubService.onLeaderboardUpdated((data) => {
         setLeaderboard(data);
       });
+      gameHubService.onManualReviewRequired(() => {
+        setNeedsManualReview(true);
+        setViewState('review');
+        loadPendingAnswers();
+      });
     });
 
     return () => {
       gameHubService.disconnect();
     };
   }, [id, setSession, setParticipants, addParticipant, setLeaderboard]);
+
+  const loadPendingAnswers = async () => {
+    if (!id) return;
+    try {
+      const answers = await getPendingAnswers(id);
+      setPendingAnswers(answers);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleReview = async (answerId: string, isCorrect: boolean) => {
+    if (!currentQuestion) return;
+    try {
+      const score = isCorrect ? (currentQuestion.maxScore || 1000) : 0;
+      await reviewAnswer(answerId, { isCorrect, scoreAwarded: score });
+      setPendingAnswers(prev => prev.filter(a => a.answerId !== answerId));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleFinishReview = async () => {
+    if (!id) return;
+    try {
+      await resumeFromReview(id);
+      setNeedsManualReview(false);
+      setViewState('question'); // Switch back or go straight to leaderboard if host prefers.
+      // Easiest is to prompt host to click "Show Results" explicitly now.
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const handleStartNextQuestion = async () => {
     try {
@@ -56,6 +97,43 @@ export default function HostGamePage() {
   if (!session) return <div className="p-8">Loading host lobby...</div>;
 
   const joinUrl = `${window.location.origin}/`;
+
+  if (viewState === 'review') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col p-8">
+        <h2 className="text-3xl font-bold text-center mb-4">Manual Review</h2>
+        <p className="text-center text-gray-500 mb-8">Review the submitted answers before showing the leaderboard.</p>
+        
+        <div className="max-w-3xl mx-auto w-full space-y-4">
+          {pendingAnswers.map((ans) => (
+            <div key={ans.answerId} className="bg-white p-6 rounded-xl shadow border border-gray-200 flex justify-between items-center">
+              <div>
+                <p className="text-sm font-bold text-gray-400 mb-1">{ans.nickname}</p>
+                <p className="text-xl font-medium">{ans.textAnswer}</p>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => handleReview(ans.answerId, false)} className="px-4 py-2 bg-red-100 text-red-700 hover:bg-red-200 font-bold rounded-lg transition-colors">
+                  Reject
+                </button>
+                <button onClick={() => handleReview(ans.answerId, true)} className="px-4 py-2 bg-green-100 text-green-700 hover:bg-green-200 font-bold rounded-lg transition-colors">
+                  Approve
+                </button>
+              </div>
+            </div>
+          ))}
+
+          {pendingAnswers.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-2xl font-bold text-gray-800 mb-4">All answers reviewed!</p>
+              <button onClick={handleFinishReview} className="px-6 py-3 bg-primary-500 text-white rounded-lg font-bold hover:bg-primary-600 transition-colors">
+                Continue Game
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (viewState === 'leaderboard') {
     return (

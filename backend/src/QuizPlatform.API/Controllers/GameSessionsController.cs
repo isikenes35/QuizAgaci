@@ -101,7 +101,8 @@ public class GameSessionsController : ControllerBase
 
         await dbContext.SaveChangesAsync(default);
 
-        timerService.StartTimer(session.Id, timeLimit);
+        var needsManualReview = question.RequiresManualReview || question.Type == QuizPlatform.Domain.Enums.QuestionType.OpenEnded;
+        timerService.StartTimer(session.Id, timeLimit, needsManualReview);
 
         var qDto = new { question.Id, question.QuestionText, question.Type };
         await notifier.NotifyQuestionStartedAsync(session.Id, qDto, timeLimit);

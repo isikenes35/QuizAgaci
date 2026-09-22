@@ -13,6 +13,7 @@ public class GameTimerState
     public Guid SessionId { get; set; }
     public int RemainingSeconds { get; set; }
     public bool IsPaused { get; set; }
+    public bool NeedsManualReview { get; set; }
 }
 
 public class GameTimerService : BackgroundService, IGameTimerService
@@ -27,13 +28,14 @@ public class GameTimerService : BackgroundService, IGameTimerService
         _logger = logger;
     }
 
-    public void StartTimer(Guid sessionId, int durationSeconds)
+    public void StartTimer(Guid sessionId, int durationSeconds, bool needsManualReview = false)
     {
         var state = new GameTimerState
         {
             SessionId = sessionId,
             RemainingSeconds = durationSeconds,
-            IsPaused = false
+            IsPaused = false,
+            NeedsManualReview = needsManualReview
         };
         _activeTimers[sessionId] = state;
     }
@@ -87,6 +89,12 @@ public class GameTimerService : BackgroundService, IGameTimerService
                     {
                         await _notifier.NotifyTimerTickAsync(sessionId, 0);
                         await _notifier.NotifyQuestionFinishedAsync(sessionId);
+                        
+                        if (state.NeedsManualReview)
+                        {
+                            await _notifier.NotifyManualReviewRequiredAsync(sessionId);
+                        }
+
                         StopTimer(sessionId);
                     }
                 }

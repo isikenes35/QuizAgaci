@@ -14,9 +14,10 @@ interface GameStore {
   isQuestionActive: boolean;
   answersCount: number;
 
-  // Phase 5 states
+  // Phase 5 & 6 states
   leaderboard: any[];
   questionResults: any | null;
+  needsManualReview: boolean;
 
   setSession: (session: GameSession | null) => void;
   setParticipants: (participants: GameParticipant[]) => void;
@@ -31,6 +32,7 @@ interface GameStore {
 
   setLeaderboard: (leaderboard: any[]) => void;
   setQuestionResults: (results: any) => void;
+  setNeedsManualReview: (needs: boolean) => void;
 }
 
 export const useGameStore = create<GameStore>((set) => ({
@@ -47,6 +49,7 @@ export const useGameStore = create<GameStore>((set) => ({
 
   leaderboard: [],
   questionResults: null,
+  needsManualReview: false,
 
   setSession: (session) => set({ session }),
   setParticipants: (participants) => set({ participants }),
@@ -62,13 +65,15 @@ export const useGameStore = create<GameStore>((set) => ({
     timeRemaining: timeLimit, 
     isQuestionActive: true,
     answersCount: 0,
-    questionResults: null 
+    questionResults: null,
+    needsManualReview: false
   }),
   updateTimer: (remaining) => set({ timeRemaining: remaining }),
   endQuestion: () => set({ isQuestionActive: false }),
   incrementAnswerCount: () => set((state) => ({ answersCount: state.answersCount + 1 })),
 
   setLeaderboard: (leaderboard) => set({ leaderboard }),
-  setQuestionResults: (results) => set({ questionResults: results })
+  setQuestionResults: (results) => set({ questionResults: results }),
+  setNeedsManualReview: (needs) => set({ needsManualReview: needs })
 }));
 
