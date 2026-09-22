@@ -69,6 +69,15 @@ public class GameTimerService : BackgroundService, IGameTimerService
         _activeTimers.TryRemove(sessionId, out _);
     }
 
+    public int? GetRemainingTime(Guid sessionId)
+    {
+        if (_activeTimers.TryGetValue(sessionId, out var state))
+        {
+            return state.RemainingSeconds;
+        }
+        return null;
+    }
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { useGameStore } from '../stores/gameStore';
-import { getSessionById, getParticipants } from '../services/api/gameApi';
+import { getSessionById, getParticipants, hideImage } from '../services/api/gameApi';
 import { getPendingAnswers, reviewAnswer, resumeFromReview } from '../services/api/answerApi';
 import type { PendingAnswer } from '../types/answer.types';
 import { gameHubService } from '../services/signalr/gameHubService';
@@ -94,6 +94,20 @@ export default function HostGamePage() {
     }
   };
 
+  const handleHideImage = async () => {
+    if (!id) return;
+    try {
+      await hideImage(id);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleExportCSV = () => {
+    if (!id) return;
+    window.open(`${import.meta.env.VITE_API_BASE_URL || 'https://localhost:7001/api'}/gamesessions/${id}/export`, '_blank');
+  };
+
   if (!session) return <div className="p-8">Loading host lobby...</div>;
 
   const joinUrl = `${window.location.origin}/`;
@@ -152,6 +166,7 @@ export default function HostGamePage() {
           {leaderboard.length === 0 && <div className="p-8 text-center text-gray-400">No participants yet</div>}
         </div>
         <div className="flex justify-center gap-4 mt-8">
+          <button onClick={handleExportCSV} className="px-6 py-3 bg-green-500 text-white rounded-lg font-bold hover:bg-green-600">Export CSV</button>
           <button onClick={handleStartNextQuestion} className="px-6 py-3 bg-primary-500 text-white rounded-lg font-bold hover:bg-primary-600">Next Question</button>
         </div>
       </div>
@@ -163,6 +178,11 @@ export default function HostGamePage() {
       <header className="bg-white px-8 py-4 shadow flex justify-between items-center">
         <h1 className="text-2xl font-bold">{session.gameCode}</h1>
         <div className="flex gap-4">
+          {viewState === 'question' && isQuestionActive && (
+            <button onClick={handleHideImage} className="bg-gray-800 text-white px-6 py-2 rounded font-bold hover:bg-gray-900">
+              Hide Image
+            </button>
+          )}
           {viewState === 'question' && !isQuestionActive && (
             <button onClick={handleShowResults} className="bg-blue-500 text-white px-6 py-2 rounded font-bold hover:bg-blue-600">
               Show Results

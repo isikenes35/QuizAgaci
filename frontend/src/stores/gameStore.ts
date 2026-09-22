@@ -18,6 +18,7 @@ interface GameStore {
   leaderboard: any[];
   questionResults: any | null;
   needsManualReview: boolean;
+  isImageHidden: boolean;
 
   setSession: (session: GameSession | null) => void;
   setParticipants: (participants: GameParticipant[]) => void;
@@ -33,6 +34,7 @@ interface GameStore {
   setLeaderboard: (leaderboard: any[]) => void;
   setQuestionResults: (results: any) => void;
   setNeedsManualReview: (needs: boolean) => void;
+  setIsImageHidden: (hidden: boolean) => void;
 }
 
 export const useGameStore = create<GameStore>((set) => ({
@@ -50,6 +52,7 @@ export const useGameStore = create<GameStore>((set) => ({
   leaderboard: [],
   questionResults: null,
   needsManualReview: false,
+  isImageHidden: false,
 
   setSession: (session) => set({ session }),
   setParticipants: (participants) => set({ participants }),
@@ -66,7 +69,8 @@ export const useGameStore = create<GameStore>((set) => ({
     isQuestionActive: true,
     answersCount: 0,
     questionResults: null,
-    needsManualReview: false
+    needsManualReview: false,
+    isImageHidden: false
   }),
   updateTimer: (remaining) => set({ timeRemaining: remaining }),
   endQuestion: () => set({ isQuestionActive: false }),
@@ -74,6 +78,7 @@ export const useGameStore = create<GameStore>((set) => ({
 
   setLeaderboard: (leaderboard) => set({ leaderboard }),
   setQuestionResults: (results) => set({ questionResults: results }),
-  setNeedsManualReview: (needs) => set({ needsManualReview: needs })
+  setNeedsManualReview: (needs) => set({ needsManualReview: needs }),
+  setIsImageHidden: (hidden) => set({ isImageHidden: hidden })
 }));
 

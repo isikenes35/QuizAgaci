@@ -17,4 +17,5 @@ public interface ISignalRNotifier
     
     Task NotifyManualReviewRequiredAsync(Guid sessionId);
     Task NotifyGameResumedAsync(Guid sessionId);
+    Task NotifyImageHiddenAsync(Guid sessionId);
 }

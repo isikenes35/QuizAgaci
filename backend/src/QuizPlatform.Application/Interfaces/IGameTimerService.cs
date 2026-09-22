@@ -9,4 +9,5 @@ public interface IGameTimerService
     void ResumeTimer(Guid sessionId);
     void ExtendTimer(Guid sessionId, int additionalSeconds);
     void StopTimer(Guid sessionId);
+    int? GetRemainingTime(Guid sessionId);
 }

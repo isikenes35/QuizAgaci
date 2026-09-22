@@ -161,9 +161,6 @@ public class GameSessionsController : ControllerBase
         {
             var p = sortedParticipants[i];
             
-            // For MVP, ScoreDelta is hardcoded as 0 or handled by client tracking differences.
-            // Ideally we query the Answer table for exactly this QuestionId, but it's simpler to send the raw leaderboard
-            // and maybe fetch the actual delta.
             var lastAnswer = await dbContext.Answers.FirstOrDefaultAsync(a => a.GameSessionId == id && a.QuestionId == session.CurrentQuestionId && a.ParticipantId == p.Id);
 
             leaderboard.Add(new QuizPlatform.Application.DTOs.Leaderboard.LeaderboardEntryDto
@@ -176,7 +173,6 @@ public class GameSessionsController : ControllerBase
             });
         }
 
-        // 3. Broadcast
         if (resultsData != null)
         {
             await notifier.NotifyShowQuestionResultsAsync(session.Id, resultsData);
@@ -184,5 +180,56 @@ public class GameSessionsController : ControllerBase
         await notifier.NotifyLeaderboardUpdatedAsync(session.Id, leaderboard);
 
         return Ok();
+    }
+
+    [HttpGet("{id}/state")]
+    [Authorize(Roles = "Player,Creator,Admin")]
+    public async Task<IActionResult> GetSessionState(Guid id, [FromServices] QuizPlatform.Application.Interfaces.IApplicationDbContext dbContext, [FromServices] QuizPlatform.Application.Interfaces.IGameTimerService timerService)
+    {
+        var session = await dbContext.GameSessions.FindAsync(id);
+        if (session == null) return NotFound();
+
+        var remainingTime = timerService.GetRemainingTime(id);
+        var question = session.CurrentQuestionId.HasValue ? await dbContext.QuizQuestions.FindAsync(session.CurrentQuestionId.Value) : null;
+
+        return Ok(new
+        {
+            session.Status,
+            currentTimeRemaining = remainingTime,
+            currentQuestion = question != null ? new { question.Id, question.QuestionText, question.Type } : null,
+            session.IsImageHidden
+        });
+    }
+
+    [HttpPost("{id}/hide-image")]
+    [Authorize(Roles = "Creator,Admin")]
+    public async Task<IActionResult> HideImage(Guid id, [FromServices] QuizPlatform.Application.Interfaces.IApplicationDbContext dbContext, [FromServices] QuizPlatform.Application.Interfaces.ISignalRNotifier notifier)
+    {
+        var session = await dbContext.GameSessions.FindAsync(id);
+        if (session == null || session.HostUserId != GetUserId()) return NotFound();
+
+        session.IsImageHidden = true;
+        await dbContext.SaveChangesAsync(default);
+
+        await notifier.NotifyImageHiddenAsync(id);
+        return Ok();
+    }
+
+    [HttpGet("{id}/export")]
+    [Authorize(Roles = "Creator,Admin")]
+    public async Task<IActionResult> ExportResults(Guid id, [FromServices] QuizPlatform.Application.Interfaces.IApplicationDbContext dbContext)
+    {
+        var session = await dbContext.GameSessions.Include(s => s.Participants).FirstOrDefaultAsync(s => s.Id == id);
+        if (session == null || session.HostUserId != GetUserId()) return NotFound();
+
+        var builder = new System.Text.StringBuilder();
+        builder.AppendLine("Nickname,Total Score,Joined At");
+        foreach (var p in session.Participants.OrderByDescending(x => x.TotalScore))
+        {
+            builder.AppendLine($"{p.Nickname},{p.TotalScore},{p.JoinedAt:yyyy-MM-dd HH:mm:ss}");
+        }
+
+        var bytes = System.Text.Encoding.UTF8.GetBytes(builder.ToString());
+        return File(bytes, "text/csv", $"game_results_{session.GameCode}.csv");
     }
 }

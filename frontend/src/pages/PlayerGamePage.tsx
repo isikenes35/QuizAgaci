@@ -2,15 +2,31 @@ import { useEffect, useState } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import { gameHubService } from '../services/signalr/gameHubService';
 import api from '../services/api/axiosConfig';
+import { getSessionState } from '../services/api/gameApi';
 
 export default function PlayerGamePage() {
-  const { currentQuestion, timeRemaining, updateTimer, endQuestion, isQuestionActive, session, questionResults, setQuestionResults, needsManualReview, setNeedsManualReview } = useGameStore();
+  const { currentQuestion, timeRemaining, updateTimer, endQuestion, isQuestionActive, session, questionResults, setQuestionResults, needsManualReview, setNeedsManualReview, isImageHidden, setIsImageHidden, setCurrentQuestion } = useGameStore();
 
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [textAnswer] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
+    // Attempt state recovery on mount
+    if (session?.id) {
+      const sId = session.id;
+      getSessionState(sId).then((state) => {
+        if (state.currentQuestion) {
+          setCurrentQuestion(state.currentQuestion, state.currentTimeRemaining || 30);
+          updateTimer(state.currentTimeRemaining || 0);
+          if (state.currentTimeRemaining === null || state.currentTimeRemaining === 0) {
+            endQuestion();
+          }
+          setIsImageHidden(state.isImageHidden);
+        }
+      }).catch(console.error);
+    }
+
     gameHubService.onTimerTick((data) => {
       updateTimer(data.remainingSeconds);
     });
@@ -31,7 +47,11 @@ export default function PlayerGamePage() {
       setNeedsManualReview(false);
     });
 
-  }, [updateTimer, endQuestion, setQuestionResults, setNeedsManualReview]);
+    gameHubService.onImageHidden(() => {
+      setIsImageHidden(true);
+    });
+
+  }, [updateTimer, endQuestion, setQuestionResults, setNeedsManualReview, setIsImageHidden, session, setCurrentQuestion]);
 
   const handleSubmit = async () => {
     if (!session || !currentQuestion) return;
@@ -101,7 +121,21 @@ export default function PlayerGamePage() {
           </div>
         ) : (
           <>
-            <h2 className="text-2xl font-bold text-center mt-8 mb-12">{currentQuestion.questionText || currentQuestion.QuestionText}</h2>
+            <h2 className="text-2xl font-bold text-center mt-8 mb-4">{currentQuestion.questionText || currentQuestion.QuestionText}</h2>
+            
+            {currentQuestion.imagePath && !isImageHidden && (
+              <div className="flex justify-center mb-8">
+                <img src={currentQuestion.imagePath} alt="Question" className="max-h-64 object-contain rounded-xl shadow-md border" />
+              </div>
+            )}
+
+            {currentQuestion.imagePath && isImageHidden && (
+              <div className="flex justify-center mb-8">
+                <div className="w-full max-w-sm h-64 bg-gray-200 flex items-center justify-center rounded-xl border border-gray-300">
+                  <span className="text-gray-500 font-bold">Image Hidden</span>
+                </div>
+              </div>
+            )}
             
             {/* Options grid would go here, stubbed out for now */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

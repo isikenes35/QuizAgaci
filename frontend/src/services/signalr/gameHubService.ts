@@ -67,6 +67,10 @@ class GameHubService {
   public onGameResumed(callback: () => void) {
     this.connection?.on('GameResumed', callback);
   }
+
+  public onImageHidden(callback: () => void) {
+    this.connection?.on('ImageHidden', callback);
+  }
 }
 
 export const gameHubService = new GameHubService();

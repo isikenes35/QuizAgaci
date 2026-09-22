@@ -54,4 +54,9 @@ public class SignalRNotifier : ISignalRNotifier
     {
         await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("GameResumed");
     }
+
+    public async Task NotifyImageHiddenAsync(Guid sessionId)
+    {
+        await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("ImageHidden");
+    }
 }
