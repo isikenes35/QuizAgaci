@@ -51,6 +51,14 @@ class GameHubService {
   public onAnswerSubmitted(callback: (data: any) => void) {
     this.connection?.on('AnswerSubmitted', callback);
   }
+
+  public onLeaderboardUpdated(callback: (data: any) => void) {
+    this.connection?.on('LeaderboardUpdated', callback);
+  }
+
+  public onShowQuestionResults(callback: (data: any) => void) {
+    this.connection?.on('ShowQuestionResults', callback);
+  }
 }
 
 export const gameHubService = new GameHubService();

@@ -4,17 +4,13 @@ import { gameHubService } from '../services/signalr/gameHubService';
 import api from '../services/api/axiosConfig';
 
 export default function PlayerGamePage() {
-  const { currentQuestion, timeRemaining, updateTimer, endQuestion, isQuestionActive, session } = useGameStore();
+  const { currentQuestion, timeRemaining, updateTimer, endQuestion, isQuestionActive, session, questionResults, setQuestionResults } = useGameStore();
 
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [textAnswer] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
-    if (!isQuestionActive) {
-      // Waiting for next question or results... for now just stay or show waiting string
-    }
-
     gameHubService.onTimerTick((data) => {
       updateTimer(data.remainingSeconds);
     });
@@ -23,7 +19,11 @@ export default function PlayerGamePage() {
       endQuestion();
     });
 
-  }, [isQuestionActive, updateTimer, endQuestion]);
+    gameHubService.onShowQuestionResults((data) => {
+      setQuestionResults(data);
+    });
+
+  }, [updateTimer, endQuestion, setQuestionResults]);
 
   const handleSubmit = async () => {
     if (!session || !currentQuestion) return;
@@ -48,6 +48,25 @@ export default function PlayerGamePage() {
 
   if (!isQuestionActive && !currentQuestion) {
     return <div className="p-8 text-center">Loading...</div>;
+  }
+
+  // If results are out
+  if (questionResults) {
+    const isCorrect = questionResults.correctOptionIds?.some((id: string) => selectedOptions.includes(id));
+    
+    return (
+      <div className={`min-h-screen flex flex-col items-center justify-center p-4 ${isCorrect ? 'bg-green-500' : 'bg-red-500'}`}>
+        <div className="bg-white p-8 rounded-xl shadow-2xl text-center max-w-md w-full">
+          <h2 className={`text-4xl font-black mb-4 ${isCorrect ? 'text-green-600' : 'text-red-600'}`}>
+            {isCorrect ? 'Correct!' : 'Incorrect'}
+          </h2>
+          <p className="text-gray-600 font-medium mb-6">
+            {questionResults.explanation || (isCorrect ? 'Great job!' : 'Better luck next time!')}
+          </p>
+          <p className="text-sm text-gray-400 mt-4">Waiting for next question...</p>
+        </div>
+      </div>
+    );
   }
 
   return (

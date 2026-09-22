@@ -34,4 +34,14 @@ public class SignalRNotifier : ISignalRNotifier
     {
         await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("QuestionFinished");
     }
+
+    public async Task NotifyLeaderboardUpdatedAsync(Guid sessionId, System.Collections.Generic.List<QuizPlatform.Application.DTOs.Leaderboard.LeaderboardEntryDto> leaderboard)
+    {
+        await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("LeaderboardUpdated", leaderboard);
+    }
+
+    public async Task NotifyShowQuestionResultsAsync(Guid sessionId, object resultsData)
+    {
+        await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("ShowQuestionResults", resultsData);
+    }
 }
