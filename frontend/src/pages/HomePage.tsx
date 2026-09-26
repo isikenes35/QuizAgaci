@@ -14,7 +14,7 @@ export default function HomePage() {
     
     try {
       const response = await joinGame({ gameCode, nickname });
-      localStorage.setItem('playerToken', response.token);
+      sessionStorage.setItem('playerToken', response.token);
       navigate(`/game/${gameCode.toUpperCase()}/lobby`);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to join game');
@@ -23,18 +23,20 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      <header className="px-8 py-4 bg-white shadow-sm flex justify-between items-center">
+      <header className="px-8 py-4 bg-white shadow-sm flex justify-between items-center relative z-50">
         <h1 className="text-2xl font-black text-primary-500 tracking-tight">QUIZ</h1>
-        <div>
+        <div className="flex items-center gap-4">
           <button 
             onClick={() => navigate('/login')}
-            className="text-gray-600 hover:text-gray-900 font-medium mr-4"
+            className="text-gray-600 hover:text-gray-900 font-medium cursor-pointer"
+            type="button"
           >
             Log in
           </button>
           <button 
             onClick={() => navigate('/register')}
-            className="bg-gray-900 text-white px-4 py-2 rounded-md font-medium hover:bg-gray-800"
+            className="bg-gray-900 text-white px-4 py-2 rounded-md font-medium hover:bg-gray-800 cursor-pointer"
+            type="button"
           >
             Sign up
           </button>

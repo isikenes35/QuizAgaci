@@ -13,12 +13,14 @@ public class AuthService : IAuthService
     private readonly IApplicationDbContext _context;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtProvider _jwtProvider;
+    private readonly ISignalRNotifier _signalRNotifier;
 
-    public AuthService(IApplicationDbContext context, IPasswordHasher passwordHasher, IJwtProvider jwtProvider)
+    public AuthService(IApplicationDbContext context, IPasswordHasher passwordHasher, IJwtProvider jwtProvider, ISignalRNotifier signalRNotifier)
     {
         _context = context;
         _passwordHasher = passwordHasher;
         _jwtProvider = jwtProvider;
+        _signalRNotifier = signalRNotifier;
     }
 
     public async Task<AuthResponseDto> RegisterAsync(RegisterRequestDto request)
@@ -57,9 +59,18 @@ public class AuthService : IAuthService
         return new AuthResponseDto { Token = token };
     }
 
-    public Task<AuthResponseDto> RefreshTokenAsync(string refreshToken)
+    public async Task<AuthResponseDto> RefreshTokenAsync(string token)
     {
-        throw new NotImplementedException();
+        var userId = _jwtProvider.ValidateToken(token);
+        if (userId == null) 
+            throw new InvalidOperationException("Invalid token");
+
+        var user = await _context.Users.FindAsync(Guid.Parse(userId));
+        if (user == null) 
+            throw new InvalidOperationException("User not found");
+
+        var newToken = _jwtProvider.GenerateToken(user);
+        return new AuthResponseDto { Token = newToken };
     }
 
     public async Task<AuthResponseDto> JoinGameAsync(PlayerJoinRequestDto request)
@@ -95,6 +106,9 @@ public class AuthService : IAuthService
 
         _context.GameParticipants.Add(participant);
         await _context.SaveChangesAsync(default);
+
+        // Notify host via SignalR that a new player joined
+        await _signalRNotifier.NotifyPlayerJoinedAsync(session.Id, participant);
 
         var token = _jwtProvider.GeneratePlayerToken(participant);
         return new AuthResponseDto { Token = token };

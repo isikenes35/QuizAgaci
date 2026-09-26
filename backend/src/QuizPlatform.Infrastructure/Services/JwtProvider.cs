@@ -46,6 +46,37 @@ public class JwtProvider : IJwtProvider
         return CreateToken(claims);
     }
 
+    public string? ValidateToken(string token)
+    {
+        var secret = _configuration["Jwt:Secret"];
+        if (string.IsNullOrEmpty(secret)) return null;
+
+        var tokenHandler = new JwtSecurityTokenHandler();
+        var key = Encoding.UTF8.GetBytes(secret);
+        
+        try
+        {
+            var validationParameters = new TokenValidationParameters
+            {
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(key),
+                ValidateIssuer = true,
+                ValidIssuer = _configuration["Jwt:Issuer"],
+                ValidateAudience = true,
+                ValidAudience = _configuration["Jwt:Audience"],
+                ValidateLifetime = false,
+                ClockSkew = TimeSpan.Zero
+            };
+
+            var principal = tokenHandler.ValidateToken(token, validationParameters, out _);
+            return principal.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private string CreateToken(IEnumerable<Claim> claims)
     {
         var secret = _configuration["Jwt:Secret"] ?? throw new InvalidOperationException("JWT Secret is not configured");

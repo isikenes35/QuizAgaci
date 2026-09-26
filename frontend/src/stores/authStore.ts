@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { AuthState, LoginCredentials, RegisterCredentials } from '../types/auth.types';
 import api from '../services/api/axiosConfig';
+import { setCreatorToken, clearTokens } from '../utils/tokenHelper';
 
 interface AuthStore extends AuthState {
   login: (credentials: LoginCredentials) => Promise<void>;
@@ -20,7 +21,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     try {
       const response = await api.post('/auth/login', credentials);
       const { token } = response.data;
-      localStorage.setItem('token', token);
+      setCreatorToken(token);
       
       // Fetch user profile
       const userResponse = await api.get('/auth/me');
@@ -45,7 +46,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     try {
       const response = await api.post('/auth/register', credentials);
       const { token } = response.data;
-      localStorage.setItem('token', token);
+      setCreatorToken(token);
       
       const userResponse = await api.get('/auth/me');
       
@@ -65,7 +66,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
   },
 
   logout: () => {
-    localStorage.removeItem('token');
+    clearTokens();
     set({ user: null, isAuthenticated: false });
   },
 

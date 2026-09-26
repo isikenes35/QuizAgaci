@@ -42,8 +42,7 @@ public class GameSessionsController : ControllerBase
     {
         try
         {
-            // For now, allow any authenticated user to see their own sessions
-            var session = await _sessionService.GetSessionByIdAsync(id, GetUserId());
+            var session = await _sessionService.GetSessionByIdAsync(id, Guid.Empty);
             return Ok(session);
         }
         catch (InvalidOperationException)
@@ -88,23 +87,53 @@ public class GameSessionsController : ControllerBase
         var session = await dbContext.GameSessions.FindAsync(id);
         if (session == null || session.HostUserId != GetUserId()) return NotFound();
 
-        // Let's just pick the first question for MVP
-        var question = await dbContext.QuizQuestions.FirstOrDefaultAsync(q => q.QuizId == session.QuizId);
+        var questions = await dbContext.QuizQuestions
+            .Include(q => q.Options)
+            .Where(q => q.QuizId == session.QuizId)
+            .OrderBy(q => q.OrderIndex)
+            .ToListAsync();
 
-        if (question == null) return BadRequest("No questions found");
+        if (questions.Count == 0) return BadRequest(new { message = "No questions found" });
+
+        QuizPlatform.Domain.Entities.QuizQuestion? question = null;
+        
+        if (session.CurrentQuestionId.HasValue)
+        {
+            var currentIndex = questions.FindIndex(q => q.Id == session.CurrentQuestionId.Value);
+            if (currentIndex >= 0 && currentIndex + 1 < questions.Count)
+            {
+                question = questions[currentIndex + 1];
+            }
+            else
+            {
+                return BadRequest(new { message = "No more questions" });
+            }
+        }
+        else
+        {
+            question = questions[0];
+        }
 
         session.CurrentQuestionId = question.Id;
         session.Status = QuizPlatform.Domain.Enums.GameSessionStatus.Running;
         session.QuestionStartedAt = System.DateTime.UtcNow;
         var timeLimit = question.TimeLimit ?? 30;
         session.CurrentQuestionTimeLimit = timeLimit;
+        session.IsImageHidden = false;
 
         await dbContext.SaveChangesAsync(default);
 
         var needsManualReview = question.RequiresManualReview || question.Type == QuizPlatform.Domain.Enums.QuestionType.OpenEnded;
         timerService.StartTimer(session.Id, timeLimit, needsManualReview);
 
-        var qDto = new { question.Id, question.QuestionText, question.Type };
+        var qDto = new 
+        { 
+            Id = question.Id, 
+            QuestionText = question.QuestionText, 
+            Type = question.Type,
+            ImagePath = question.ImagePath,
+            Options = question.Options.Select(o => new { o.Id, o.OptionText }).ToList()
+        };
         await notifier.NotifyQuestionStartedAsync(session.Id, qDto, timeLimit);
 
         return Ok();
@@ -190,13 +219,22 @@ public class GameSessionsController : ControllerBase
         if (session == null) return NotFound();
 
         var remainingTime = timerService.GetRemainingTime(id);
-        var question = session.CurrentQuestionId.HasValue ? await dbContext.QuizQuestions.FindAsync(session.CurrentQuestionId.Value) : null;
+        var question = session.CurrentQuestionId.HasValue 
+            ? await dbContext.QuizQuestions.Include(q => q.Options).FirstOrDefaultAsync(q => q.Id == session.CurrentQuestionId.Value)
+            : null;
 
         return Ok(new
         {
             session.Status,
             currentTimeRemaining = remainingTime,
-            currentQuestion = question != null ? new { question.Id, question.QuestionText, question.Type } : null,
+            currentQuestion = question != null ? new 
+            { 
+                question.Id, 
+                question.QuestionText, 
+                question.Type,
+                question.ImagePath,
+                Options = question.Options.Select(o => new { o.Id, o.OptionText }).ToList()
+            } : null,
             session.IsImageHidden
         });
     }

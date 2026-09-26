@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "icCh0P4ZEjc=",
+  "dgSpecHash": "Zf3sdy6LhRQ=",
   "success": true,
   "projectFilePath": "C:\\Users\\e_ne_\\OneDrive\\Masaüstü\\Web Geliştirme\\Actual\\Quiz Ağacı Test\\backend\\src\\QuizPlatform.Application\\QuizPlatform.Application.csproj",
   "expectedPackageFiles": [
@@ -29,7 +29,7 @@
       "filePath": "C:\\Users\\e_ne_\\OneDrive\\Masaüstü\\Web Geliştirme\\Actual\\Quiz Ağacı Test\\backend\\src\\QuizPlatform.Application\\QuizPlatform.Application.csproj",
       "libraryId": "AutoMapper",
       "targetGraphs": [
-        "net9.0"
+        "net8.0"
       ]
     }
   ]

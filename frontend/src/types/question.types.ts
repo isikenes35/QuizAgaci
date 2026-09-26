@@ -31,4 +31,13 @@ export interface CreateQuestionData {
   questionText: string;
   options: { optionText: string; isCorrect: boolean }[];
   timeLimit?: number;
+  maxScore?: number;
+  minScore?: number;
+  speedBonusEnabled?: boolean;
+  imagePath?: string;
+  explanationText?: string;
+  imageVisibilityDuration?: number;
+  hideImageAfterTimer?: boolean;
+  requiresManualReview?: boolean;
+  allowAlternativeAnswer?: boolean;
 }

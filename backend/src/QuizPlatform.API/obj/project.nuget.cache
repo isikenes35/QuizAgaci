@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "T8aahMtWtOM=",
+  "dgSpecHash": "VEeqjRwt1NI=",
   "success": true,
   "projectFilePath": "C:\\Users\\e_ne_\\OneDrive\\Masaüstü\\Web Geliştirme\\Actual\\Quiz Ağacı Test\\backend\\src\\QuizPlatform.API\\QuizPlatform.API.csproj",
   "expectedPackageFiles": [
@@ -10,7 +10,6 @@
     "C:\\Users\\e_ne_\\.nuget\\packages\\fluentvalidation.dependencyinjectionextensions\\11.9.0\\fluentvalidation.dependencyinjectionextensions.11.9.0.nupkg.sha512",
     "C:\\Users\\e_ne_\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
     "C:\\Users\\e_ne_\\.nuget\\packages\\microsoft.aspnetcore.authentication.jwtbearer\\8.0.8\\microsoft.aspnetcore.authentication.jwtbearer.8.0.8.nupkg.sha512",
-    "C:\\Users\\e_ne_\\.nuget\\packages\\microsoft.aspnetcore.openapi\\9.0.20\\microsoft.aspnetcore.openapi.9.0.20.nupkg.sha512",
     "C:\\Users\\e_ne_\\.nuget\\packages\\microsoft.bcl.asyncinterfaces\\6.0.0\\microsoft.bcl.asyncinterfaces.6.0.0.nupkg.sha512",
     "C:\\Users\\e_ne_\\.nuget\\packages\\microsoft.codeanalysis.analyzers\\3.3.3\\microsoft.codeanalysis.analyzers.3.3.3.nupkg.sha512",
     "C:\\Users\\e_ne_\\.nuget\\packages\\microsoft.codeanalysis.common\\4.5.0\\microsoft.codeanalysis.common.4.5.0.nupkg.sha512",
@@ -45,7 +44,7 @@
     "C:\\Users\\e_ne_\\.nuget\\packages\\microsoft.identitymodel.protocols\\7.1.2\\microsoft.identitymodel.protocols.7.1.2.nupkg.sha512",
     "C:\\Users\\e_ne_\\.nuget\\packages\\microsoft.identitymodel.protocols.openidconnect\\7.1.2\\microsoft.identitymodel.protocols.openidconnect.7.1.2.nupkg.sha512",
     "C:\\Users\\e_ne_\\.nuget\\packages\\microsoft.identitymodel.tokens\\7.1.2\\microsoft.identitymodel.tokens.7.1.2.nupkg.sha512",
-    "C:\\Users\\e_ne_\\.nuget\\packages\\microsoft.openapi\\1.6.30\\microsoft.openapi.1.6.30.nupkg.sha512",
+    "C:\\Users\\e_ne_\\.nuget\\packages\\microsoft.openapi\\1.2.3\\microsoft.openapi.1.2.3.nupkg.sha512",
     "C:\\Users\\e_ne_\\.nuget\\packages\\mono.texttemplating\\2.2.1\\mono.texttemplating.2.2.1.nupkg.sha512",
     "C:\\Users\\e_ne_\\.nuget\\packages\\mysqlconnector\\2.3.5\\mysqlconnector.2.3.5.nupkg.sha512",
     "C:\\Users\\e_ne_\\.nuget\\packages\\pomelo.entityframeworkcore.mysql\\8.0.2\\pomelo.entityframeworkcore.mysql.8.0.2.nupkg.sha512",

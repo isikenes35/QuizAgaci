@@ -1,25 +1,91 @@
-import { HubConnection, HubConnectionBuilder } from '@microsoft/signalr';
+import { HubConnection, HubConnectionBuilder, HttpTransportType } from '@microsoft/signalr';
 
 class GameHubService {
   private connection: HubConnection | null = null;
   private isConnected = false;
 
-  public async connect(token: string) {
-    if (this.isConnected) return;
+  public async connect(token: string, sessionId?: string) {
+    if (this.connection && (this.connection.state === 'Connected' || this.connection.state === 'Connecting')) {
+      return;
+    }
+
+    // Stop if there is any connecting/disconnecting state running
+    if (this.connection) {
+       await this.connection.stop();
+    }
 
     this.connection = new HubConnectionBuilder()
-      .withUrl(import.meta.env.VITE_SIGNALR_HUB_URL || 'https://localhost:7001/gamehub', {
-        accessTokenFactory: () => token
+      .withUrl(import.meta.env.VITE_SIGNALR_HUB_URL || 'http://localhost:5294/gamehub', {
+        accessTokenFactory: () => token,
+        skipNegotiation: true,
+        transport: HttpTransportType.WebSockets
       })
       .withAutomaticReconnect()
       .build();
+
+    this.connection.onreconnecting(() => {
+      console.log('SignalR reconnecting...');
+      this.isConnected = false;
+    });
+
+    this.connection.onreconnected(async (connectionId) => {
+      console.log('SignalR reconnected:', connectionId);
+      this.isConnected = true;
+      if (sessionId) {
+        await this.joinGameGroup(sessionId);
+      }
+    });
+
+    this.connection.onclose(() => {
+      console.log('SignalR disconnected');
+      this.isConnected = false;
+    });
 
     try {
       await this.connection.start();
       this.isConnected = true;
       console.log('SignalR Connected!');
+      
+      if (sessionId) {
+        await this.joinGameGroup(sessionId);
+      }
     } catch (e) {
       console.error('SignalR Connection Error: ', e);
+    }
+  }
+
+  public async joinGameGroup(sessionId: string) {
+    if (!this.connection) {
+      console.error('Connection not initialized');
+      return;
+    }
+
+    if (!this.isConnected) {
+      console.warn('Connection not ready, waiting...');
+      await new Promise((resolve) => {
+        const checkInterval = setInterval(() => {
+          if (this.isConnected) {
+            clearInterval(checkInterval);
+            resolve(true);
+          }
+        }, 100);
+        
+        setTimeout(() => {
+          clearInterval(checkInterval);
+          resolve(false);
+        }, 5000);
+      });
+    }
+
+    if (this.isConnected) {
+      try {
+        await this.connection.invoke('JoinGameGroup', sessionId);
+        console.log(`Joined SignalR group for session: ${sessionId}`);
+      } catch (e) {
+        console.error('Failed to join game group:', e);
+      }
+    } else {
+      console.error('Failed to connect within timeout');
     }
   }
 
@@ -36,7 +102,7 @@ class GameHubService {
     this.connection?.on('PlayerJoined', callback);
   }
 
-  public onQuestionStarted(callback: (data: any) => void) {
+  public onQuestionStarted(callback: (question: any, timeLimit: number) => void) {
     this.connection?.on('QuestionStarted', callback);
   }
 

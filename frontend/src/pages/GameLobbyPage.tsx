@@ -10,7 +10,7 @@ export default function GameLobbyPage() {
   const { setSession, setCurrentQuestion, isQuestionActive } = useGameStore();
 
   useEffect(() => {
-    const token = localStorage.getItem('playerToken');
+    const token = sessionStorage.getItem('playerToken');
     if (!token) {
       window.location.href = '/';
       return;
@@ -20,12 +20,20 @@ export default function GameLobbyPage() {
       getSessionByCode(code).then(setSession).catch(console.error);
     }
 
-    // Connect to SignalR
-    gameHubService.connect(token).then(() => {
-      gameHubService.onQuestionStarted((data) => {
-        setCurrentQuestion(data.questionDto, data.timeLimit);
-      });
-    });
+    // Connect to SignalR and await connection before registering listeners
+    const initializeSignalR = async () => {
+      try {
+        const session = await getSessionByCode(code!);
+        await gameHubService.connect(token, session.id);
+        gameHubService.onQuestionStarted((question, timeLimit) => {
+          setCurrentQuestion(question, timeLimit);
+        });
+      } catch (error) {
+        console.error('SignalR connection failed:', error);
+      }
+    };
+    
+    initializeSignalR();
 
     return () => {
       gameHubService.disconnect();

@@ -2,7 +2,7 @@ import api from './axiosConfig';
 import type { GameSession, GameParticipant, JoinGameData } from '../../types/game.types';
 
 export const startGameSession = async (quizId: string): Promise<GameSession> => {
-  const response = await api.post('/gamesessions/start', quizId, {
+  const response = await api.post('/gamesessions/start', JSON.stringify(quizId), {
     headers: { 'Content-Type': 'application/json' }
   });
   return response.data;

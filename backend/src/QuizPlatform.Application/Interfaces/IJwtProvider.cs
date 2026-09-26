@@ -8,4 +8,5 @@ public interface IJwtProvider
 {
     string GenerateToken(User user);
     string GeneratePlayerToken(GameParticipant participant);
+    string? ValidateToken(string token);
 }

@@ -19,7 +19,7 @@ public class AnswersController : ControllerBase
     }
 
     [HttpPost("submit")]
-    [Authorize(Roles = "Player")]
+    [Authorize]
     public async Task<IActionResult> SubmitAnswer([FromBody] SubmitAnswerDto request)
     {
         var participantIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;

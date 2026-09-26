@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
 using QuizPlatform.Application.Interfaces;
 using QuizPlatform.API.Hubs;
+using QuizPlatform.Domain.Entities;
 
 namespace QuizPlatform.API.Services;
 
@@ -15,6 +16,17 @@ public class SignalRNotifier : ISignalRNotifier
         _hubContext = hubContext;
     }
 
+    public async Task NotifyPlayerJoinedAsync(Guid sessionId, GameParticipant participant)
+    {
+        await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("PlayerJoined", new 
+        { 
+            id = participant.Id, 
+            nickname = participant.Nickname,
+            totalScore = participant.TotalScore,
+            isConnected = participant.IsConnected
+        });
+    }
+
     public async Task NotifyAnswerSubmittedAsync(Guid sessionId, Guid participantId)
     {
         await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("AnswerSubmitted", new { participantId });
@@ -22,7 +34,7 @@ public class SignalRNotifier : ISignalRNotifier
 
     public async Task NotifyQuestionStartedAsync(Guid sessionId, object questionDto, int timeLimit)
     {
-        await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("QuestionStarted", new { questionDto, timeLimit, startedAt = DateTime.UtcNow });
+        await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("QuestionStarted", questionDto, timeLimit);
     }
 
     public async Task NotifyTimerTickAsync(Guid sessionId, int remainingSeconds)

@@ -268,21 +268,25 @@ public class QuizService : IQuizService
         question.RequiresManualReview = dto.RequiresManualReview;
         question.AllowAlternativeAnswer = dto.AllowAlternativeAnswer;
 
-        // Simplify options update by recreate (since we don't have option IDs passed in CreateQuestionDto)
-        _context.QuestionOptions.RemoveRange(question.Options);
+        var existingOptions = question.Options.ToList();
+        _context.QuestionOptions.RemoveRange(existingOptions);
+        await _context.SaveChangesAsync(default);
+
         question.Options.Clear();
 
         var order = 0;
         foreach (var opt in dto.Options)
         {
-            question.Options.Add(new QuestionOption
+            var newOption = new QuestionOption
             {
                 Id = Guid.NewGuid(),
                 QuestionId = question.Id,
                 OrderIndex = order++,
                 OptionText = opt.OptionText,
                 IsCorrect = opt.IsCorrect
-            });
+            };
+            question.Options.Add(newOption);
+            _context.QuestionOptions.Add(newOption);
         }
 
         question.Quiz.UpdatedAt = DateTime.UtcNow;

@@ -5,10 +5,10 @@ import api from '../services/api/axiosConfig';
 import { getSessionState } from '../services/api/gameApi';
 
 export default function PlayerGamePage() {
-  const { currentQuestion, timeRemaining, updateTimer, endQuestion, isQuestionActive, session, questionResults, setQuestionResults, needsManualReview, setNeedsManualReview, isImageHidden, setIsImageHidden, setCurrentQuestion } = useGameStore();
+  const { currentQuestion, timeRemaining, updateTimer, endQuestion, isQuestionActive, session, questionResults, setQuestionResults, needsManualReview, setNeedsManualReview, setIsImageHidden, setCurrentQuestion } = useGameStore();
 
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
-  const [textAnswer] = useState('');
+  const [textAnswer, setTextAnswer] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
@@ -26,6 +26,20 @@ export default function PlayerGamePage() {
         }
       }).catch(console.error);
     }
+
+    const token = sessionStorage.getItem('playerToken');
+    const sessionId = session?.id || new URLSearchParams(window.location.search).get('sessionId');
+    
+    if (token && sessionId) {
+      gameHubService.connect(token, sessionId).catch(console.error);
+    }
+
+    gameHubService.onQuestionStarted((question, timeLimit) => {
+      setCurrentQuestion(question, timeLimit || 30);
+      setSubmitted(false);
+      setSelectedOptions([]);
+      setTextAnswer('');
+    });
 
     gameHubService.onTimerTick((data) => {
       updateTimer(data.remainingSeconds);
@@ -63,7 +77,7 @@ export default function PlayerGamePage() {
         SelectedOptionIds: selectedOptions,
         TextAnswer: textAnswer
       }, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('playerToken')}` }
+        headers: { Authorization: `Bearer ${sessionStorage.getItem('playerToken')}` }
       });
       
       if (response.data.success) {
@@ -121,37 +135,61 @@ export default function PlayerGamePage() {
           </div>
         ) : (
           <>
-            <h2 className="text-2xl font-bold text-center mt-8 mb-4">{currentQuestion.questionText || currentQuestion.QuestionText}</h2>
-            
-            {currentQuestion.imagePath && !isImageHidden && (
-              <div className="flex justify-center mb-8">
-                <img src={currentQuestion.imagePath} alt="Question" className="max-h-64 object-contain rounded-xl shadow-md border" />
-              </div>
-            )}
-
-            {currentQuestion.imagePath && isImageHidden && (
-              <div className="flex justify-center mb-8">
-                <div className="w-full max-w-sm h-64 bg-gray-200 flex items-center justify-center rounded-xl border border-gray-300">
-                  <span className="text-gray-500 font-bold">Image Hidden</span>
-                </div>
-              </div>
-            )}
-            
-            {/* Options grid would go here, stubbed out for now */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-               <button 
-                 onClick={() => setSelectedOptions(['some-id'])}
-                 className="p-8 bg-red-500 text-white rounded-xl shadow font-bold text-xl hover:bg-red-600 transition-colors"
-               >
-                 Option 1
-               </button>
-               <button 
-                 onClick={() => setSelectedOptions(['some-id-2'])}
-                 className="p-8 bg-blue-500 text-white rounded-xl shadow font-bold text-xl hover:bg-blue-600 transition-colors"
-               >
-                 Option 2
-               </button>
+            <div className="text-center py-4">
+               <p className="text-gray-500 font-medium">Lütfen ana ekrana (Host) bakınız.</p>
             </div>
+            
+            {/* Dynamic question type rendering */}
+            {currentQuestion.type === 'OpenEnded' ? (
+              <div className="mb-8 mt-4">
+                <textarea
+                  value={textAnswer}
+                  onChange={(e) => setTextAnswer(e.target.value)}
+                  placeholder="Cevabınızı buraya yazın..."
+                  className="w-full p-4 border-2 border-gray-300 rounded-xl focus:border-primary-600 focus:outline-none min-h-[200px] text-lg"
+                  maxLength={500}
+                />
+                <p className="text-sm text-gray-500 mt-2 text-right">{textAnswer.length}/500</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 h-64">
+                {currentQuestion.options?.map((option: any) => {
+                  const optionId = option.id || option.Id;
+                  const optionText = option.optionText || option.OptionText;
+                  const isSelected = selectedOptions.includes(optionId);
+                  const isMultiSelect = currentQuestion.type === 'MultipleSelect';
+
+                  const handleOptionSelect = () => {
+                    if (isMultiSelect) {
+                      setSelectedOptions(prev =>
+                        prev.includes(optionId)
+                          ? prev.filter(id => id !== optionId)
+                          : [...prev, optionId]
+                      );
+                    } else {
+                      setSelectedOptions([optionId]);
+                    }
+                  };
+
+                  return (
+                    <button
+                      key={optionId}
+                      onClick={handleOptionSelect}
+                      className={`p-6 rounded-xl shadow-md font-bold text-xl transition-all flex items-center justify-center text-gray-800 border-2 ${
+                        isSelected
+                          ? `bg-primary-100 border-primary-500 ring-4 ring-primary-200 scale-95`
+                          : `bg-white border-gray-300 hover:bg-gray-50`
+                      }`}
+                    >
+                      {isMultiSelect && (
+                        <span className="mr-3 text-2xl">{isSelected ? '☑' : '☐'}</span>
+                      )}
+                      {optionText}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             
             <div className="mt-auto pt-8 pb-4">
               <button 

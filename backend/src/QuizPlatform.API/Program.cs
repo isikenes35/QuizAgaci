@@ -13,7 +13,11 @@ using System;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -25,7 +29,7 @@ builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
 
 // Add local services
-builder.Services.AddScoped<QuizPlatform.Application.Interfaces.ISignalRNotifier, QuizPlatform.API.Services.SignalRNotifier>();
+builder.Services.AddSingleton<QuizPlatform.Application.Interfaces.ISignalRNotifier, QuizPlatform.API.Services.SignalRNotifier>();
 builder.Services.AddSingleton<QuizPlatform.Application.Interfaces.IGameTimerService, QuizPlatform.API.Services.GameTimerService>();
 builder.Services.AddHostedService(provider => (QuizPlatform.API.Services.GameTimerService)provider.GetRequiredService<QuizPlatform.Application.Interfaces.IGameTimerService>());
 
