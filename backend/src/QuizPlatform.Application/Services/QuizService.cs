@@ -227,7 +227,7 @@ public class QuizService : IQuizService
         };
 
         var order = 0;
-        foreach (var opt in dto.Options)
+        foreach (var opt in dto.Options ?? Enumerable.Empty<CreateQuestionOptionDto>())
         {
             question.Options.Add(new QuestionOption
             {
@@ -275,7 +275,7 @@ public class QuizService : IQuizService
         question.Options.Clear();
 
         var order = 0;
-        foreach (var opt in dto.Options)
+        foreach (var opt in dto.Options ?? Enumerable.Empty<CreateQuestionOptionDto>())
         {
             var newOption = new QuestionOption
             {
@@ -303,6 +303,14 @@ public class QuizService : IQuizService
 
         if (question != null)
         {
+            var answersToRemove = await _context.Answers.Where(a => a.QuestionId == questionId).ToListAsync(); _context.Answers.RemoveRange(answersToRemove);
+
+            var gameSessions = await _context.GameSessions.Where(gs => gs.CurrentQuestionId == questionId).ToListAsync();
+            foreach (var session in gameSessions)
+            {
+                session.CurrentQuestionId = null;
+            }
+
             _context.QuizQuestions.Remove(question);
             question.Quiz.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync(default);
@@ -360,3 +368,6 @@ public class QuizService : IQuizService
         };
     }
 }
+
+
+

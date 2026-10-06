@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { joinGame } from '../services/api/gameApi';
+import { motion } from 'framer-motion';
+import { playPop } from '../utils/audioSystem';
 
 export default function HomePage() {
   const [gameCode, setGameCode] = useState('');
@@ -11,13 +13,14 @@ export default function HomePage() {
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    playPop();
     
     try {
       const response = await joinGame({ gameCode, nickname });
       sessionStorage.setItem('playerToken', response.token);
       navigate(`/game/${gameCode.toUpperCase()}/lobby`);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to join game');
+      setError(err.response?.data?.message || 'Oyuna katılamadınız');
     }
   };
 
@@ -26,26 +29,25 @@ export default function HomePage() {
       <header className="px-8 py-4 bg-white shadow-sm flex justify-between items-center relative z-50">
         <h1 className="text-2xl font-black text-primary-500 tracking-tight">QUIZ</h1>
         <div className="flex items-center gap-4">
-          <button 
-            onClick={() => navigate('/login')}
+          <motion.button 
+            whileTap={{ scale: 0.95 }}
+            onClick={() => { playPop(); navigate('/login'); }}
             className="text-gray-600 hover:text-gray-900 font-medium cursor-pointer"
             type="button"
           >
-            Log in
-          </button>
-          <button 
-            onClick={() => navigate('/register')}
-            className="bg-gray-900 text-white px-4 py-2 rounded-md font-medium hover:bg-gray-800 cursor-pointer"
-            type="button"
-          >
-            Sign up
-          </button>
+            Yönetici Girişi
+          </motion.button>
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col items-center justify-center -mt-16">
-        <div className="w-full max-w-md p-8 bg-white rounded-xl shadow-lg border border-gray-100">
-          <h2 className="text-2xl font-bold text-center mb-6">Join a Game</h2>
+      <main className="flex-1 flex flex-col items-center justify-center -mt-16 px-4">
+        <motion.div 
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 400, damping: 25 }}
+          className="w-full max-w-md p-8 bg-white rounded-xl shadow-lg border border-gray-100"
+        >
+          <h2 className="text-2xl font-bold text-center mb-6">Oyuna Katıl</h2>
           {error && <div className="mb-4 text-red-500 text-center text-sm font-medium">{error}</div>}
           
           <form onSubmit={handleJoin} className="space-y-4">
@@ -53,7 +55,7 @@ export default function HomePage() {
               <input
                 type="text"
                 required
-                placeholder="Game Code"
+                placeholder="Oyun Kodu"
                 value={gameCode}
                 onChange={(e) => setGameCode(e.target.value)}
                 className="w-full px-4 py-3 text-lg font-bold text-center uppercase tracking-widest border-2 border-gray-200 rounded-lg focus:border-primary-500 focus:ring-0 transition-colors"
@@ -64,21 +66,22 @@ export default function HomePage() {
               <input
                 type="text"
                 required
-                placeholder="Nickname"
+                placeholder="Kullanıcı Adı"
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
                 className="w-full px-4 py-3 text-lg text-center border-2 border-gray-200 rounded-lg focus:border-primary-500 focus:ring-0 transition-colors"
                 maxLength={20}
               />
             </div>
-            <button 
+            <motion.button 
+              whileTap={{ scale: 0.95 }}
               type="submit"
               className="w-full py-4 bg-primary-500 text-white text-xl font-bold rounded-lg hover:bg-primary-600 transition-colors"
             >
-              Enter
-            </button>
+              Giriş Yap
+            </motion.button>
           </form>
-        </div>
+        </motion.div>
       </main>
     </div>
   );

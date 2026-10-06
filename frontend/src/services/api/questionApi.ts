@@ -42,3 +42,4 @@ export const deleteQuestion = async (questionId: string): Promise<void> => {
 export const reorderQuestions = async (quizId: string, questionIds: string[]): Promise<void> => {
   await api.patch(`/quizzes/${quizId}/questions/reorder`, questionIds);
 };
+

@@ -66,19 +66,39 @@ public class AnswerService : IAnswerService
 
         var isCorrect = false;
         int score = 0;
-        var needsReview = question.RequiresManualReview || question.Type == QuestionType.OpenEnded;
-        var reviewStatus = needsReview ? AnswerReviewStatus.Pending : AnswerReviewStatus.NotRequired;
-        
+        var needsReview = question.RequiresManualReview;
+
         var optionsJson = JsonSerializer.Serialize(dto.SelectedOptionIds);
 
-        if (!needsReview)
+        if (question.Type == QuestionType.OpenEnded)
+        {
+            var normalizedAnswer = dto.TextAnswer?.Trim().ToLowerInvariant() ?? "";
+            var correctOptions = question.Options.Where(o => o.IsCorrect).Select(o => o.OptionText.Trim().ToLowerInvariant());
+
+            if (correctOptions.Any() && correctOptions.Contains(normalizedAnswer))
+            {
+                isCorrect = true;
+                needsReview = false; 
+            }
+            else
+            {
+                needsReview = true; 
+            }
+        }
+        else if (!needsReview)
         {
             isCorrect = _scoringService.CheckCorrectness(question, optionsJson, dto.TextAnswer);
-            score = _scoringService.CalculateScore(question, responseTime, isCorrect);
         }
 
+        if (isCorrect && !needsReview)
+        {
+            score = _scoringService.CalculateScore(question, responseTime, true);
+        }
+
+        var reviewStatus = needsReview ? AnswerReviewStatus.Pending : (isCorrect ? AnswerReviewStatus.Approved : AnswerReviewStatus.NotRequired);
+
         // Add Score to participant immediately if not pending
-        if (score > 0)
+        if (score > 0 && !needsReview)
         {
             participant.TotalScore += score;
         }
@@ -130,16 +150,26 @@ public class AnswerService : IAnswerService
         var answer = await _context.Answers
             .Include(a => a.GameSession)
             .Include(a => a.Participant)
+            .Include(a => a.Question).ThenInclude(q => q.Quiz)
             .FirstOrDefaultAsync(a => a.Id == answerId && a.GameSession.HostUserId == hostUserId);
 
         if (answer == null) throw new InvalidOperationException("Answer not found");
         if (answer.ReviewStatus != AnswerReviewStatus.Pending) throw new InvalidOperationException("Answer is not pending review");
 
         answer.IsCorrect = dto.IsCorrect;
-        answer.ScoreAwarded = dto.ScoreAwarded;
-        answer.ReviewStatus = dto.IsCorrect ? AnswerReviewStatus.Approved : AnswerReviewStatus.Rejected;
         
-        answer.Participant.TotalScore += dto.ScoreAwarded;
+        if (dto.IsCorrect)
+        {
+            var score = _scoringService.CalculateScore(answer.Question, answer.ResponseTimeSeconds, true);
+            answer.ScoreAwarded = score;
+            answer.Participant.TotalScore += score;
+        }
+        else
+        {
+            answer.ScoreAwarded = 0;
+        }
+
+        answer.ReviewStatus = dto.IsCorrect ? AnswerReviewStatus.Approved : AnswerReviewStatus.Rejected;
 
         await _context.SaveChangesAsync(default);
     }

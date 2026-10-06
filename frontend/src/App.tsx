@@ -8,7 +8,6 @@ import DashboardLayout from './components/layout/DashboardLayout';
 // Pages
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import CreateQuizPage from './pages/CreateQuizPage';
 import EditQuizPage from './pages/EditQuizPage';
@@ -43,7 +42,6 @@ function App() {
         {/* Public Routes */}
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
         
         {/* Player Routes */}
         <Route path="/game/:code/lobby" element={<GameLobbyPage />} />

@@ -22,7 +22,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // SignalR
-builder.Services.AddSignalR();
+builder.Services.AddSignalR().AddJsonProtocol(options => { options.PayloadSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()); options.PayloadSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase; });
 
 // Extension methods from Application and Infrastructure
 builder.Services.AddApplicationServices();
@@ -76,7 +76,61 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
+builder.Configuration.AddJsonFile("appsettings.Secret.json", optional: true, reloadOnChange: true);
+
 var app = builder.Build();
+
+// Seed Initial Admin/Allowed Users from appsettings.Secret.json
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<QuizPlatform.Infrastructure.Data.ApplicationDbContext>();
+    var passwordHasher = scope.ServiceProvider.GetRequiredService<QuizPlatform.Application.Interfaces.IPasswordHasher>();
+    var configuration = scope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>();
+    
+    var initialUsers = configuration.GetSection("InitialUsers").Get<QuizPlatform.API.Models.InitialUser[]>();
+    if (initialUsers != null)
+    {
+        foreach (var iu in initialUsers)
+        {
+            if (!System.Linq.Enumerable.Any(context.Users, u => u.Email == iu.Email))
+            {
+                context.Users.Add(new QuizPlatform.Domain.Entities.User
+                {
+                    Id = Guid.NewGuid(),
+                    Email = iu.Email,
+                    FullName = iu.FullName ?? "User",
+                    PasswordHash = passwordHasher.HashPassword(iu.Password),
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+        }
+        context.SaveChanges();
+    }
+}
+
+// Global Exception Handler
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        context.Response.StatusCode = 500;
+        context.Response.ContentType = "application/json";
+        var contextFeature = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>();
+        if (contextFeature != null)
+        {
+            // Loglama mekanizmanız varsa buraya eklenebilir
+            System.Console.WriteLine($"[Global Error] {contextFeature.Error}");
+            
+            await context.Response.WriteAsJsonAsync(new
+            {
+                success = false,
+                message = app.Environment.IsDevelopment() 
+                    ? $"Sunucu hatası: {contextFeature.Error.Message}" 
+                    : "Beklenmeyen bir sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin."
+            });
+        }
+    });
+});
 
 app.UseCors();
 
@@ -86,7 +140,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseAuthentication();
@@ -96,3 +150,4 @@ app.MapControllers();
 app.MapHub<GameHub>("/gamehub");
 
 app.Run();
+

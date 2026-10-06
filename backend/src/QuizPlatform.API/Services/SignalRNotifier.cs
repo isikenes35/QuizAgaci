@@ -5,6 +5,8 @@ using QuizPlatform.Application.Interfaces;
 using QuizPlatform.API.Hubs;
 using QuizPlatform.Domain.Entities;
 
+using QuizPlatform.Application.DTOs.Leaderboard;
+
 namespace QuizPlatform.API.Services;
 
 public class SignalRNotifier : ISignalRNotifier
@@ -70,5 +72,10 @@ public class SignalRNotifier : ISignalRNotifier
     public async Task NotifyImageHiddenAsync(Guid sessionId)
     {
         await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("ImageHidden");
+    }
+    
+    public async Task NotifyGameEndedAsync(Guid sessionId, List<LeaderboardEntryDto> finalLeaderboard)
+    {
+        await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("GameEnded", finalLeaderboard);
     }
 }

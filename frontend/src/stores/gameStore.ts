@@ -30,6 +30,7 @@ interface GameStore {
   updateTimer: (remaining: number) => void;
   endQuestion: () => void;
   incrementAnswerCount: () => void;
+  setAnswersCount: (count: number) => void;
 
   setLeaderboard: (leaderboard: any[]) => void;
   setQuestionResults: (results: any) => void;
@@ -72,13 +73,22 @@ export const useGameStore = create<GameStore>((set) => ({
     needsManualReview: false,
     isImageHidden: false
   }),
-  updateTimer: (remaining) => set({ timeRemaining: remaining }),
+  updateTimer: (remaining) => set((state) => {
+    let newLimit = state.timeLimit;
+    if (remaining > state.timeLimit) {
+      newLimit = remaining;
+    }
+    return { timeRemaining: remaining, timeLimit: newLimit };
+  }),
   endQuestion: () => set({ isQuestionActive: false }),
   incrementAnswerCount: () => set((state) => ({ answersCount: state.answersCount + 1 })),
+  setAnswersCount: (count) => set({ answersCount: count }),
 
   setLeaderboard: (leaderboard) => set({ leaderboard }),
   setQuestionResults: (results) => set({ questionResults: results }),
   setNeedsManualReview: (needs) => set({ needsManualReview: needs }),
   setIsImageHidden: (hidden) => set({ isImageHidden: hidden })
 }));
+
+
 

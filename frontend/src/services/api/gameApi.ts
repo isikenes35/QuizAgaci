@@ -30,14 +30,12 @@ export const joinGame = async (data: JoinGameData): Promise<{ token: string }> =
 };
 
 export const getSessionState = async (id: string): Promise<any> => {
-  const token = localStorage.getItem('playerToken') || localStorage.getItem('token');
-  const response = await api.get(`/gamesessions/${id}/state`, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+  const response = await api.get(`/gamesessions/${id}/state`);
   return response.data;
 };
 
 export const hideImage = async (id: string): Promise<void> => {
   await api.post(`/gamesessions/${id}/hide-image`);
 };
+
 

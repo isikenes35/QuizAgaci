@@ -165,12 +165,21 @@ public class GameSessionsController : ControllerBase
 
     [HttpPost("{id}/show-results")]
     [Authorize(Roles = "Creator,Admin")]
-    public async Task<IActionResult> ShowResults(Guid id, [FromServices] QuizPlatform.Application.Interfaces.IApplicationDbContext dbContext, [FromServices] QuizPlatform.Application.Interfaces.ISignalRNotifier notifier)
+    public async Task<IActionResult> ShowResults(Guid id, [FromServices] QuizPlatform.Application.Interfaces.IApplicationDbContext dbContext, [FromServices] QuizPlatform.Application.Interfaces.ISignalRNotifier notifier, [FromServices] QuizPlatform.Application.Interfaces.IGameTimerService timerService)
     {
+        timerService.StopTimer(id);
         var session = await dbContext.GameSessions.Include(s => s.Participants)
             .FirstOrDefaultAsync(s => s.Id == id);
 
         if (session == null || session.HostUserId != GetUserId()) return NotFound();
+
+        var pendingAnswersCount = await dbContext.Answers.CountAsync(a => a.GameSessionId == id && a.QuestionId == session.CurrentQuestionId && a.ReviewStatus == QuizPlatform.Domain.Enums.AnswerReviewStatus.Pending);
+        if (pendingAnswersCount > 0)
+        {
+            await notifier.NotifyQuestionFinishedAsync(session.Id);
+            await notifier.NotifyManualReviewRequiredAsync(session.Id);
+            return Ok();
+        }
 
         // 1. Fetch current question to broadcast correct answers
         var question = await dbContext.QuizQuestions.Include(q => q.Options)
@@ -180,7 +189,13 @@ public class GameSessionsController : ControllerBase
         if (question != null)
         {
             var correctOptionIds = question.Options.Where(o => o.IsCorrect).Select(o => o.Id).ToList();
-            resultsData = new { correctOptionIds, explanation = question.ExplanationText };
+            
+            var participantCorrectness = await dbContext.Answers
+                .Where(a => a.GameSessionId == id && a.QuestionId == session.CurrentQuestionId)
+                .Select(a => new { a.ParticipantId, a.IsCorrect })
+                .ToDictionaryAsync(a => a.ParticipantId.ToString(), a => a.IsCorrect);
+                
+            resultsData = new { correctOptionIds, explanation = question.ExplanationText, participantCorrectness };
         }
 
         // 2. Fetch Leaderboard
@@ -219,12 +234,17 @@ public class GameSessionsController : ControllerBase
         if (session == null) return NotFound();
 
         var remainingTime = timerService.GetRemainingTime(id);
-        var question = session.CurrentQuestionId.HasValue 
-            ? await dbContext.QuizQuestions.Include(q => q.Options).FirstOrDefaultAsync(q => q.Id == session.CurrentQuestionId.Value)
-            : null;
+        var question = session.CurrentQuestionId.HasValue ? await dbContext.QuizQuestions.Include(q => q.Options).FirstOrDefaultAsync(q => q.Id == session.CurrentQuestionId.Value) : null;
+
+        var currentAnswersCount = 0;
+        if (session.CurrentQuestionId.HasValue)
+        {
+            currentAnswersCount = await dbContext.Answers.CountAsync(a => a.GameSessionId == id && a.QuestionId == session.CurrentQuestionId.Value);
+        }
 
         return Ok(new
         {
+            currentAnswersCount,
             session.Status,
             currentTimeRemaining = remainingTime,
             currentQuestion = question != null ? new 
@@ -253,6 +273,36 @@ public class GameSessionsController : ControllerBase
         return Ok();
     }
 
+    [HttpPost("{id}/finish")]
+    [Authorize(Roles = "Creator,Admin")]
+    public async Task<IActionResult> FinishGame(Guid id, [FromServices] QuizPlatform.Application.Interfaces.IApplicationDbContext dbContext, [FromServices] QuizPlatform.Application.Interfaces.ISignalRNotifier notifier)
+    {
+        var session = await dbContext.GameSessions.Include(s => s.Participants).FirstOrDefaultAsync(s => s.Id == id);
+        if (session == null || session.HostUserId != GetUserId()) return NotFound();
+
+        var sortedParticipants = session.Participants.OrderByDescending(p => p.TotalScore).ToList();
+        var leaderboard = new System.Collections.Generic.List<QuizPlatform.Application.DTOs.Leaderboard.LeaderboardEntryDto>();
+        for (int i = 0; i < sortedParticipants.Count; i++)
+        {
+            var p = sortedParticipants[i];
+            leaderboard.Add(new QuizPlatform.Application.DTOs.Leaderboard.LeaderboardEntryDto
+            {
+                ParticipantId = p.Id,
+                Nickname = p.Nickname,
+                TotalScore = p.TotalScore,
+                Rank = i + 1,
+                ScoreDelta = 0
+            });
+        }
+
+        await notifier.NotifyGameEndedAsync(session.Id, leaderboard);
+        
+        session.Status = QuizPlatform.Domain.Enums.GameSessionStatus.Finished;
+        await dbContext.SaveChangesAsync(default);
+
+        return Ok();
+    }
+
     [HttpGet("{id}/export")]
     [Authorize(Roles = "Creator,Admin")]
     public async Task<IActionResult> ExportResults(Guid id, [FromServices] QuizPlatform.Application.Interfaces.IApplicationDbContext dbContext)
@@ -271,3 +321,4 @@ public class GameSessionsController : ControllerBase
         return File(bytes, "text/csv", $"game_results_{session.GameCode}.csv");
     }
 }
+
