@@ -28,8 +28,11 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 items-center justify-center">
       <div className="w-full max-w-md p-8 bg-white rounded-xl shadow-lg border border-gray-100">
-        <h2 className="text-2xl font-bold text-center mb-6">QUIZ Girişi</h2>
-        <p className="text-center text-gray-500 mb-8">Tekrar hoş geldiniz! Lütfen bilgilerinizi girin.</p>
+        <div className="flex justify-center mb-6">
+          <img src="/quizea_logo.svg" alt="Quiz Ağacı" className="h-16" />
+        </div>
+        <h2 className="text-2xl font-bold text-center mb-2">Yönetici Girişi</h2>
+        <p className="text-center text-gray-500 mb-8">Lütfen bilgilerinizi girin.</p>
         
         {(localError || error) && (
           <div className="mb-4 text-red-500 text-center text-sm font-medium p-3 bg-red-50 rounded-lg">

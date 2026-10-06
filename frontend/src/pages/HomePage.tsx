@@ -27,7 +27,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <header className="px-8 py-4 bg-white shadow-sm flex justify-between items-center relative z-50">
-        <h1 className="text-2xl font-black text-primary-500 tracking-tight">QUIZ</h1>
+        <img src="/quizea_logo.svg" alt="Quiz Ağacı" className="h-8" />
         <div className="flex items-center gap-4">
           <motion.button 
             whileTap={{ scale: 0.95 }}
