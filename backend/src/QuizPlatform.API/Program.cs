@@ -84,6 +84,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<QuizPlatform.Infrastructure.Data.ApplicationDbContext>();
+    context.Database.Migrate();
     var passwordHasher = scope.ServiceProvider.GetRequiredService<QuizPlatform.Application.Interfaces.IPasswordHasher>();
     var configuration = scope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>();
     
