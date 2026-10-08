@@ -410,33 +410,50 @@ export default function EditQuizPage() {
 
                 {(formData.type === 'MultipleChoice' || formData.type === 'MultipleSelect' || formData.type === 'TrueFalse' || formData.type === 'OpenEnded') && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Cevap Seçenekleri</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        {formData.type === 'OpenEnded' 
+                          ? 'Kabul Edilebilir Cevaplar' 
+                          : 'Cevap Seçenekleri'}
+                      </label>
+                      {formData.type === 'OpenEnded' && (
+                        <p className="text-sm text-gray-500 mb-3">
+                          Her satır bir kabul edilebilir cevaptır (büyük/küçük harf ve Türkçe karakter farkı gözetmez)
+                        </p>
+                      )}
                     <div className="space-y-3">
                       {formData.options.map((option, index) => (
                         <div key={index} className="flex items-center gap-3">
-                          <input
-                            type={formData.type === 'MultipleChoice' || formData.type === 'TrueFalse' ? 'radio' : 'checkbox'}
-                            checked={option.isCorrect}
-                            onChange={(e) => {
-                              if (formData.type === 'MultipleChoice' || formData.type === 'TrueFalse') {
-                                const newOptions = formData.options.map((opt, i) => ({
-                                  ...opt,
-                                  isCorrect: i === index
-                                }));
-                                setFormData({ ...formData, options: newOptions });
-                              } else {
-                                updateOption(index, 'isCorrect', e.target.checked);
-                              }
-                            }}
-                            className="w-5 h-5 text-primary-500"
-                          />
+                          {formData.type !== 'OpenEnded' && (
+                            <input
+                              type={formData.type === 'MultipleChoice' || formData.type === 'TrueFalse' ? 'radio' : 'checkbox'}
+                              checked={option.isCorrect}
+                              onChange={(e) => {
+                                if (formData.type === 'MultipleChoice' || formData.type === 'TrueFalse') {
+                                  const newOptions = formData.options.map((opt, i) => ({
+                                    ...opt,
+                                    isCorrect: i === index
+                                  }));
+                                  setFormData({ ...formData, options: newOptions });
+                                } else {
+                                  updateOption(index, 'isCorrect', e.target.checked);
+                                }
+                              }}
+                              className="w-5 h-5 text-primary-500"
+                            />
+                          )}
                           <input
                             type="text"
                             required
                             value={option.optionText}
-                            onChange={(e) => updateOption(index, 'optionText', e.target.value)}
+                            onChange={(e) => {
+                              updateOption(index, 'optionText', e.target.value);
+                              // OpenEnded için tüm options'ı isCorrect=true yap
+                              if (formData.type === 'OpenEnded') {
+                                updateOption(index, 'isCorrect', true);
+                              }
+                            }}
                               className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-primary-500 focus:ring-0"
-                              placeholder={`Seçenek ${index + 1}`}
+                              placeholder={formData.type === 'OpenEnded' ? `Kabul edilebilir cevap ${index + 1}` : `Seçenek ${index + 1}`}
                               readOnly={formData.type === 'TrueFalse'}
                           />
                           {formData.options.length > 2 && formData.type !== 'TrueFalse' && (
@@ -457,7 +474,7 @@ export default function EditQuizPage() {
                           onClick={addOption}
                           className="mt-3 text-sm text-primary-500 hover:text-primary-700 font-medium"
                         >
-                          + Seçenek Ekle
+                          {formData.type === 'OpenEnded' ? '+ Cevap Ekle' : '+ Seçenek Ekle'}
                         </button>
                     )}
                   </div>

@@ -543,17 +543,17 @@ export default function HostGamePage() {
             </h2>
 
             {(currentQuestion.imagePath || currentQuestion.ImagePath) && !isImageHidden && (
-              <div className="w-full max-w-2xl bg-white p-4 rounded-2xl shadow-lg border border-gray-100 mb-8">
+              <div className="w-full max-w-4xl bg-white p-4 rounded-2xl shadow-lg border border-gray-100 mb-8">
                 <img 
                   src={getImageUrl(currentQuestion.imagePath || currentQuestion?.ImagePath)} 
                   alt="Soru görseli" 
-                  className="w-full h-auto max-h-[400px] object-contain rounded-xl" 
+                  className="w-full h-auto max-h-[600px] object-contain rounded-xl" 
                 />
               </div>
             )}
 
             {(currentQuestion.imagePath || currentQuestion.ImagePath) && isImageHidden && (
-              <div className="w-full max-w-2xl bg-gray-100 p-4 rounded-2xl shadow-inner border border-gray-200 mb-8 h-64 flex items-center justify-center">
+              <div className="w-full max-w-4xl bg-gray-100 p-4 rounded-2xl shadow-inner border border-gray-200 mb-8 h-64 flex items-center justify-center">
                  <span className="text-2xl font-bold text-gray-400">Görsel şu an gizli</span>
               </div>
             )}

@@ -39,7 +39,24 @@ public class ScoringService : IScoringService
     {
         if (question.Type == QuestionType.OpenEnded)
         {
-            return false; // Open ended defaults to false until manual review, or check if exact string matches.
+            if (string.IsNullOrWhiteSpace(textAnswer))
+                return false;
+            
+            // Get accepted answers from QuestionOption
+            var acceptedAnswers = question.Options
+                .Where(o => o.IsCorrect)
+                .Select(o => o.OptionText)
+                .ToList();
+            
+            if (!acceptedAnswers.Any())
+                return false; // No accepted answers defined, needs manual review
+            
+            // Normalize: Trim + Turkish culture-insensitive lowercase
+            var normalizedSubmitted = NormalizeText(textAnswer);
+            
+            return acceptedAnswers.Any(accepted => 
+                NormalizeText(accepted) == normalizedSubmitted
+            );
         }
 
         if (string.IsNullOrEmpty(submittedOptionsJson)) return false;
@@ -60,5 +77,28 @@ public class ScoringService : IScoringService
         {
             return false;
         }
+    }
+
+    private string NormalizeText(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return string.Empty;
+        
+        // Convert Turkish characters to English equivalents
+        text = text.Trim()
+            .Replace('ı', 'i')
+            .Replace('İ', 'i')
+            .Replace('ş', 's')
+            .Replace('Ş', 's')
+            .Replace('ğ', 'g')
+            .Replace('Ğ', 'g')
+            .Replace('ü', 'u')
+            .Replace('Ü', 'u')
+            .Replace('ö', 'o')
+            .Replace('Ö', 'o')
+            .Replace('ç', 'c')
+            .Replace('Ç', 'c');
+        
+        return text.ToLowerInvariant();
     }
 }
