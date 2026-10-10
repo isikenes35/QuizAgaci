@@ -2,59 +2,76 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Configuration;
 using QuizPlatform.Application.Interfaces;
+using CloudinaryDotNet;
+using CloudinaryDotNet.Actions;
 
 namespace QuizPlatform.Infrastructure.Services;
 
 public class FileStorageService : IFileStorageService
 {
-    private readonly IWebHostEnvironment _env;
+    private readonly Cloudinary _cloudinary;
 
-    public FileStorageService(IWebHostEnvironment env)
+    public FileStorageService(IConfiguration configuration)
     {
-        _env = env;
+        var account = new Account(
+            configuration["Cloudinary:CloudName"] ?? Environment.GetEnvironmentVariable("Cloudinary__CloudName"),
+            configuration["Cloudinary:ApiKey"] ?? Environment.GetEnvironmentVariable("Cloudinary__ApiKey"),
+            configuration["Cloudinary:ApiSecret"] ?? Environment.GetEnvironmentVariable("Cloudinary__ApiSecret")
+        );
+
+        _cloudinary = new Cloudinary(account);
+        _cloudinary.Api.Secure = true;
     }
 
     public async Task<string> SaveFileAsync(Stream fileStream, string fileName, string folderPath)
     {
-        var webRoot = _env.WebRootPath;
-        if (string.IsNullOrWhiteSpace(webRoot))
+        var uploadParams = new ImageUploadParams()
         {
-            webRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+            File = new FileDescription(fileName, fileStream),
+            Folder = "quizea/" + folderPath,
+            UseFilename = true,
+            UniqueFilename = true
+        };
+
+        var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+
+        if (uploadResult.Error != null)
+        {
+            throw new Exception("Image upload failed: " + uploadResult.Error.Message);
         }
 
-        var uploadsFolder = Path.Combine(webRoot, folderPath);
-        if (!Directory.Exists(uploadsFolder))
-        {
-            Directory.CreateDirectory(uploadsFolder);
-        }
-
-        var uniqueFileName = $"{Guid.NewGuid()}_{fileName}";
-        var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-        using var fileStreamDestination = new FileStream(filePath, FileMode.Create);
-        await fileStream.CopyToAsync(fileStreamDestination);
-
-        return Path.Combine("/", folderPath, uniqueFileName).Replace("\\", "/");
+        return uploadResult.SecureUrl.ToString();
     }
 
     public void DeleteFile(string filePath)
     {
         if (string.IsNullOrWhiteSpace(filePath)) return;
 
-        var webRoot = _env.WebRootPath;
-        if (string.IsNullOrWhiteSpace(webRoot))
+        // Extract Cloudinary Public ID from URL
+        // https://res.cloudinary.com/cloudName/image/upload/v12345/quizea/uploads/filename.jpg
+        try
         {
-            webRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+            var uri = new Uri(filePath);
+            var pathParts = uri.AbsolutePath.Split('/');
+            
+            // Find where "quizea" starts
+            int folderIndex = Array.IndexOf(pathParts, "quizea");
+            if (folderIndex >= 0)
+            {
+                // Join everything from "quizea" to the end
+                var publicIdWithExt = string.Join("/", pathParts, folderIndex, pathParts.Length - folderIndex);
+                var publicId = Path.ChangeExtension(publicIdWithExt, null); // Remove extension like .jpg
+                
+                var deletionParams = new DeletionParams(publicId);
+                _cloudinary.Destroy(deletionParams);
+            }
         }
-
-        // remove leading slash
-        var relativePath = filePath.TrimStart('/');
-        var fullPath = Path.Combine(webRoot, relativePath);
-
-        if (File.Exists(fullPath))
+        catch
         {
-            File.Delete(fullPath);
+            // If it's not a valid URL or destruction fails, ignore. 
+            // It might be an old local file path that we can't delete anymore.
         }
     }
 }
