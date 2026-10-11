@@ -15,7 +15,7 @@ public class Quiz
     public QuizStatus Status { get; set; }
     
     public int DefaultTimeLimit { get; set; } = 30; // seconds
-    public int DefaultMaxScore { get; set; } = 1000;
+    public int DefaultMaxScore { get; set; } = 2000;
     public bool DefaultSpeedBonus { get; set; } = true;
     
     public DateTime CreatedAt { get; set; }

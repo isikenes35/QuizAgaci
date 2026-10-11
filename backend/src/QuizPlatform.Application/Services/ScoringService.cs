@@ -13,26 +13,29 @@ public class ScoringService : IScoringService
     {
         if (!isCorrect) return 0;
 
-        var maxScore = question.MaxScore ?? question.Quiz.DefaultMaxScore;
-        var minScore = question.MinScore ?? 0;
-        var speedBonusEnabled = question.SpeedBonusEnabled ?? question.Quiz.DefaultSpeedBonus;
-        var timeLimit = question.TimeLimit ?? question.Quiz.DefaultTimeLimit;
+        var configuredMax = question.MaxScore ?? (question.Quiz != null && question.Quiz.DefaultMaxScore > 0 ? question.Quiz.DefaultMaxScore : 2000);
+        var maxScore = configuredMax <= 1000 ? 2000 : configuredMax;
 
-        if (timeLimit <= 0) timeLimit = 30; // safeguard
+        var minScore = question.MinScore.GetValueOrDefault(1000);
+        if (minScore <= 0) minScore = 1000;
 
-        var baseScore = maxScore;
-        double speedBonus = 0;
+        if (maxScore < minScore) maxScore = minScore * 2;
 
-        if (speedBonusEnabled)
+        var speedBonusEnabled = question.SpeedBonusEnabled ?? (question.Quiz?.DefaultSpeedBonus ?? true);
+        var timeLimit = question.TimeLimit ?? (question.Quiz?.DefaultTimeLimit ?? 30);
+
+        if (timeLimit <= 0) timeLimit = 30;
+
+        if (!speedBonusEnabled)
         {
-            var clampedResponseTime = Math.Max(0, Math.Min(responseTimeSeconds, timeLimit));
-            var speedMultiplier = (timeLimit - clampedResponseTime) / timeLimit;
-            // E.g., max 50% extra score as speed bonus
-            speedBonus = baseScore * speedMultiplier * 0.5;
+            return maxScore;
         }
 
-        var totalScore = (int)Math.Max(minScore, baseScore + speedBonus);
-        return totalScore;
+        var clampedResponseTime = Math.Max(0, Math.Min(responseTimeSeconds, timeLimit));
+        var speedMultiplier = (timeLimit - clampedResponseTime) / timeLimit;
+
+        var totalScore = (int)Math.Round(minScore + ((maxScore - minScore) * speedMultiplier));
+        return Math.Max(minScore, totalScore);
     }
 
     public bool CheckCorrectness(QuizQuestion question, string? submittedOptionsJson, string? textAnswer)

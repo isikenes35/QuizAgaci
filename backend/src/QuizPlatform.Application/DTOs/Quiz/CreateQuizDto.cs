@@ -10,7 +10,7 @@ public class CreateQuizDto
     public string Language { get; set; } = "en";
     
     public int DefaultTimeLimit { get; set; } = 30;
-    public int DefaultMaxScore { get; set; } = 1000;
+    public int DefaultMaxScore { get; set; } = 2000;
     public bool DefaultSpeedBonus { get; set; } = true;
 }
 
