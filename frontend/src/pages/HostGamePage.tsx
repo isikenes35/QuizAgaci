@@ -271,7 +271,7 @@ export default function HostGamePage() {
                   try {
                     await Promise.all(pendingAnswers.map(ans => {
                       const isCorrect = selectedCorrectAnswers.includes(ans.answerId);
-                      const score = isCorrect ? (currentQuestion?.maxScore || 1000) : 0;
+                      const score = isCorrect ? (currentQuestion?.maxScore || 2000) : 0;
                       return reviewAnswer(ans.answerId, { isCorrect, scoreAwarded: score });
                     }));
                     setPendingAnswers([]);
@@ -423,7 +423,7 @@ export default function HostGamePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white px-8 py-4 shadow flex justify-between items-center">
+      <header className="bg-white px-6 py-3 shadow flex justify-between items-center">
         <h1 className="text-2xl font-bold">{session.gameCode}</h1>
         <div className="flex gap-4">
           
@@ -460,7 +460,7 @@ export default function HostGamePage() {
         </div>
       </header>
       
-      <main className="flex-1 p-8">
+      <main className={`flex-1 ${viewState === 'question' ? 'p-3 md:p-5 flex flex-col min-h-0' : 'p-8'}`}>
         {viewState === 'lobby' && (
           <div className="flex gap-8 h-full">
             {/* Left Side - Access Info */}
@@ -510,73 +510,84 @@ export default function HostGamePage() {
           </div>
         )}
 
-        {viewState === 'question' && currentQuestion && (
-          <div className="flex flex-col items-center h-full max-w-5xl mx-auto w-full">
-            
-            {/* Progress Bar */}
-            <div className="w-full bg-gray-200 rounded-full h-4 mb-8 overflow-hidden shadow-inner">
-              <div 
-                className="bg-primary-500 h-4 rounded-full transition-all duration-1000 ease-linear" 
-                style={{ width: `${(timeRemaining / Math.max(timeLimit || 30, 1)) * 100}%` }}
-              ></div>
-            </div>
+        {viewState === 'question' && currentQuestion && (() => {
+          const hasImage = Boolean((currentQuestion.imagePath || currentQuestion.ImagePath) && !isImageHidden);
+          const currentPotentialScore = Math.round(1000 + (1000 * (timeRemaining / Math.max(timeLimit || 30, 1))));
 
-            <div className="flex justify-between w-full mb-8 items-center px-4">
-               <div className="flex flex-col">
-                 <span className="text-gray-500 font-bold text-xl uppercase tracking-wider">
-                    Soru {currentQuestionIndex + 1} / {totalQuestions || '?'}
-                 </span>
-                 <span className="text-primary-600 font-bold text-lg mt-2">
-                    Cevaplar: {useGameStore.getState().answersCount} / {participants.length}
-                    {useGameStore.getState().answersCount === participants.length && participants.length > 0 && " (Herkes Cevapladı!)"}
-                 </span>
-               </div>
-               <div className="bg-white px-6 py-2 rounded-full shadow border-2 border-gray-100">
-                  <span className={`text-4xl font-black ${timeRemaining <= 5 ? 'text-red-500 animate-pulse' : 'text-gray-800'}`}>
-                    {timeRemaining}
-                  </span>
-               </div>
-            </div>
+          return (
+            <div className="flex flex-col items-center flex-1 max-w-5xl mx-auto w-full justify-between">
+              
+              <div className="w-full">
+                <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2.5 overflow-hidden shadow-inner">
+                  <div 
+                    className="bg-primary-500 h-2.5 rounded-full transition-all duration-1000 ease-linear" 
+                    style={{ width: `${(timeRemaining / Math.max(timeLimit || 30, 1)) * 100}%` }}
+                  ></div>
+                </div>
 
-            <h2 className="text-5xl lg:text-7xl xl:text-8xl font-black text-center text-gray-900 mb-12 leading-tight">
-              {currentQuestion.questionText || currentQuestion.QuestionText}
-            </h2>
-
-            {(currentQuestion.imagePath || currentQuestion.ImagePath) && !isImageHidden && (
-              <div className="w-full max-w-4xl bg-white p-4 rounded-2xl shadow-lg border border-gray-100 mb-8">
-                <img 
-                  src={getImageUrl(currentQuestion.imagePath || currentQuestion?.ImagePath)} 
-                  alt="Soru görseli" 
-                  className="w-full h-auto max-h-[600px] object-contain rounded-xl" 
-                />
-              </div>
-            )}
-
-            {(currentQuestion.imagePath || currentQuestion.ImagePath) && isImageHidden && (
-              <div className="w-full max-w-4xl bg-gray-100 p-4 rounded-2xl shadow-inner border border-gray-200 mb-8 h-64 flex items-center justify-center">
-                 <span className="text-2xl font-bold text-gray-400">Görsel şu an gizli</span>
-              </div>
-            )}
-
-            {/* If it's a multiple choice/select question, show options on host screen for audience */}
-            {((currentQuestion.options || currentQuestion.Options) || []).length > 0 && String(currentQuestion.type || currentQuestion.Type || '').toLowerCase() !== 'openended' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full mt-auto">
-                {(currentQuestion.options || currentQuestion.Options).map((option: any, optIdx: number) => {
-                   const colors = ['bg-red-500', 'bg-blue-500', 'bg-yellow-500', 'bg-green-500', 'bg-purple-500', 'bg-pink-500'];
-                   const bgColor = colors[optIdx % colors.length];
-                   return (
-                     <div key={option.id || option.Id} className={`${bgColor} text-white p-8 rounded-2xl shadow-md min-h-[120px] flex justify-center items-center`}>
-                        <span className="text-3xl font-bold text-center drop-shadow-md">
-                          {option.optionText || option.OptionText}
+                <div className="flex justify-between w-full mb-3 items-center px-2">
+                   <div className="flex flex-col">
+                     <span className="text-gray-500 font-bold text-base md:text-lg uppercase tracking-wider">
+                        Soru {currentQuestionIndex + 1} / {totalQuestions || '?'}
+                     </span>
+                     <span className="text-primary-600 font-semibold text-sm md:text-base">
+                        Cevaplar: {useGameStore.getState().answersCount} / {participants.length}
+                        {useGameStore.getState().answersCount === participants.length && participants.length > 0 && " (Herkes Cevapladı!)"}
+                     </span>
+                   </div>
+                   <div className="flex items-center gap-3">
+                      <div className="bg-primary-50 text-primary-700 px-3.5 py-1.5 rounded-full border border-primary-200 font-bold text-sm md:text-base flex items-center gap-1.5 shadow-sm">
+                        <span>⚡</span>
+                        <span>{currentPotentialScore} Puan</span>
+                      </div>
+                      <div className="bg-white px-5 py-1.5 rounded-full shadow border-2 border-gray-100 min-w-[70px] text-center">
+                        <span className={`text-3xl md:text-4xl font-black ${timeRemaining <= 5 ? 'text-red-500 animate-pulse' : 'text-gray-800'}`}>
+                          {timeRemaining}
                         </span>
-                     </div>
-                   )
-                })}
+                      </div>
+                   </div>
+                </div>
               </div>
-            )}
 
-          </div>
-        )}
+              <h2 className={`${hasImage ? 'text-2xl md:text-3xl lg:text-4xl mb-3' : 'text-3xl md:text-5xl lg:text-6xl mb-8'} font-extrabold text-center text-gray-900 leading-snug px-4 max-w-4xl`}>
+                {currentQuestion.questionText || currentQuestion.QuestionText}
+              </h2>
+
+              {hasImage && (
+                <div className="w-full max-w-5xl flex-1 min-h-[240px] max-h-[50vh] bg-white p-3 rounded-2xl shadow-lg border border-gray-100 mb-3 flex items-center justify-center overflow-hidden">
+                  <img 
+                    src={getImageUrl(currentQuestion.imagePath || currentQuestion?.ImagePath)} 
+                    alt="Soru görseli" 
+                    className="w-full h-full max-h-[46vh] object-contain rounded-xl" 
+                  />
+                </div>
+              )}
+
+              {(currentQuestion.imagePath || currentQuestion.ImagePath) && isImageHidden && (
+                <div className="w-full max-w-4xl bg-gray-100 p-4 rounded-2xl shadow-inner border border-gray-200 mb-3 h-36 flex items-center justify-center">
+                   <span className="text-xl font-bold text-gray-400">Görsel şu an gizli</span>
+                </div>
+              )}
+
+              {((currentQuestion.options || currentQuestion.Options) || []).length > 0 && String(currentQuestion.type || currentQuestion.Type || '').toLowerCase() !== 'openended' && (
+                <div className={`grid grid-cols-1 sm:grid-cols-2 gap-2.5 md:gap-3 w-full max-w-4xl ${hasImage ? 'mt-1' : 'mt-auto'}`}>
+                  {(currentQuestion.options || currentQuestion.Options).map((option: any, optIdx: number) => {
+                     const colors = ['bg-red-500', 'bg-blue-500', 'bg-yellow-500', 'bg-green-500', 'bg-purple-500', 'bg-pink-500'];
+                     const bgColor = colors[optIdx % colors.length];
+                     return (
+                       <div key={option.id || option.Id} className={`${bgColor} text-white px-4 py-2.5 md:py-3 rounded-xl shadow min-h-[48px] md:min-h-[54px] flex items-center justify-center text-center`}>
+                          <span className="text-base md:text-lg lg:text-xl font-bold drop-shadow-sm">
+                            {option.optionText || option.OptionText}
+                          </span>
+                       </div>
+                     )
+                  })}
+                </div>
+              )}
+
+            </div>
+          );
+        })()}
       </main>
     </div>
   );

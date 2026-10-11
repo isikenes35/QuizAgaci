@@ -15,7 +15,7 @@ export default function CreateQuizPage() {
         description, 
         language: 'tr',
         defaultTimeLimit: 30,
-        defaultMaxScore: 1000,
+        defaultMaxScore: 2000,
         defaultSpeedBonus: true
       });
       navigate(`/dashboard/editor/${quiz.id}`);

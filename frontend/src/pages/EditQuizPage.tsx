@@ -228,7 +228,7 @@ export default function EditQuizPage() {
         description: quiz.description,
         language: quiz.language,
         defaultTimeLimit: quiz.defaultTimeLimit || 30,
-        defaultMaxScore: quiz.defaultMaxScore || 1000,
+        defaultMaxScore: quiz.defaultMaxScore || 2000,
         defaultSpeedBonus: quiz.defaultSpeedBonus ?? true,
         coverImagePath: quiz.coverImagePath,
         status: quiz.status,

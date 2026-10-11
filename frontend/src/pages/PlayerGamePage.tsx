@@ -8,7 +8,7 @@ import { playPop, playCorrect as triggerPlayCorrect, playWrong as triggerPlayWro
 import { getPlayerParticipantId } from '../utils/tokenHelper';
 
 export default function PlayerGamePage() {
-  const { currentQuestion, timeRemaining, updateTimer, endQuestion, isQuestionActive, session, questionResults, setQuestionResults, needsManualReview, setNeedsManualReview, setIsImageHidden, setCurrentQuestion } = useGameStore();
+  const { currentQuestion, timeRemaining, timeLimit, updateTimer, endQuestion, isQuestionActive, session, questionResults, setQuestionResults, needsManualReview, setNeedsManualReview, setIsImageHidden, setCurrentQuestion } = useGameStore();
 
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [textAnswer, setTextAnswer] = useState('');
@@ -255,7 +255,11 @@ export default function PlayerGamePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <div className="bg-white p-4 shadow-md sticky top-0 z-50 text-center">
+      <div className="bg-white px-4 py-3 shadow-md sticky top-0 z-50 flex items-center justify-between max-w-2xl mx-auto w-full">
+        <span className="text-sm font-bold text-primary-700 bg-primary-50 px-3 py-1 rounded-full border border-primary-200 shadow-sm flex items-center gap-1">
+          <span>⚡</span>
+          <span>{Math.round(1000 + (1000 * (timeRemaining / Math.max(timeLimit || 30, 1))))} Puan</span>
+        </span>
         <motion.div 
           animate={{ scale: [1.1, 1] }}
           transition={{ duration: 0.3 }}
