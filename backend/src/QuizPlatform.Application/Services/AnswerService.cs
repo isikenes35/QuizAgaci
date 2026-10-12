@@ -72,18 +72,9 @@ public class AnswerService : IAnswerService
 
         if (question.Type == QuestionType.OpenEnded)
         {
-            var normalizedAnswer = dto.TextAnswer?.Trim().ToLowerInvariant() ?? "";
-            var correctOptions = question.Options.Where(o => o.IsCorrect).Select(o => o.OptionText.Trim().ToLowerInvariant());
-
-            if (correctOptions.Any() && correctOptions.Contains(normalizedAnswer))
-            {
-                isCorrect = true;
-                needsReview = false; 
-            }
-            else
-            {
-                needsReview = true; 
-            }
+            isCorrect = _scoringService.CheckCorrectness(question, optionsJson, dto.TextAnswer);
+            var hasContent = !string.IsNullOrWhiteSpace(dto.TextAnswer);
+            needsReview = question.RequiresManualReview ? true : (!isCorrect && hasContent);
         }
         else if (!needsReview)
         {

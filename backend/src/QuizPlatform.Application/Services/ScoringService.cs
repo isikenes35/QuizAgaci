@@ -32,7 +32,17 @@ public class ScoringService : IScoringService
         }
 
         var clampedResponseTime = Math.Max(0, Math.Min(responseTimeSeconds, timeLimit));
-        var speedMultiplier = (timeLimit - clampedResponseTime) / timeLimit;
+
+        // 10 saniyelik okuma suresi (grace period) - ilk 10 saniye boyunca puan 2000 olarak kalir
+        var gracePeriod = Math.Min(10.0, Math.Max(0.0, timeLimit - 5.0));
+        var decayWindow = Math.Max(timeLimit - gracePeriod, 1.0);
+
+        double speedMultiplier = 1.0;
+        if (clampedResponseTime > gracePeriod)
+        {
+            var elapsedDecay = clampedResponseTime - gracePeriod;
+            speedMultiplier = Math.Max(0.0, (decayWindow - elapsedDecay) / decayWindow);
+        }
 
         var totalScore = (int)Math.Round(minScore + ((maxScore - minScore) * speedMultiplier));
         return Math.Max(minScore, totalScore);
