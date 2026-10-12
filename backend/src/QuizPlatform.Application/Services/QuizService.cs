@@ -111,11 +111,69 @@ public class QuizService : IQuizService
     public async Task DeleteQuizAsync(Guid id, Guid userId)
     {
         var quiz = await _context.Quizzes.FirstOrDefaultAsync(q => q.Id == id && q.UserId == userId);
-        if (quiz != null)
+        if (quiz == null) return;
+
+        // 1. Bu quize ait tüm soru id'lerini al
+        var questionIds = await _context.QuizQuestions
+            .Where(q => q.QuizId == id)
+            .Select(q => q.Id)
+            .ToListAsync();
+
+        // 2. Bu quize ait tüm oyun oturumu (GameSession) id'lerini al
+        var sessionIds = await _context.GameSessions
+            .Where(g => g.QuizId == id)
+            .Select(g => g.Id)
+            .ToListAsync();
+
+        // 3. Bu oturumlara veya sorulara bağlı tüm cevapları (Answer) sil
+        var answers = await _context.Answers
+            .Where(a => sessionIds.Contains(a.GameSessionId) || questionIds.Contains(a.QuestionId))
+            .ToListAsync();
+        if (answers.Any())
         {
-            _context.Quizzes.Remove(quiz);
-            await _context.SaveChangesAsync(default);
+            _context.Answers.RemoveRange(answers);
         }
+
+        // 4. Bu oturumlara bağlı tüm katılımcıları (GameParticipant) sil
+        var participants = await _context.GameParticipants
+            .Where(p => sessionIds.Contains(p.GameSessionId))
+            .ToListAsync();
+        if (participants.Any())
+        {
+            _context.GameParticipants.RemoveRange(participants);
+        }
+
+        // 5. Oyun oturumlarını (GameSession) sil
+        var sessions = await _context.GameSessions
+            .Where(g => sessionIds.Contains(g.Id))
+            .ToListAsync();
+        if (sessions.Any())
+        {
+            _context.GameSessions.RemoveRange(sessions);
+        }
+
+        // 6. Sorulara ait seçenekleri (QuestionOption) sil
+        var options = await _context.QuestionOptions
+            .Where(o => questionIds.Contains(o.QuestionId))
+            .ToListAsync();
+        if (options.Any())
+        {
+            _context.QuestionOptions.RemoveRange(options);
+        }
+
+        // 7. Soruları (QuizQuestion) sil
+        var questions = await _context.QuizQuestions
+            .Where(q => q.QuizId == id)
+            .ToListAsync();
+        if (questions.Any())
+        {
+            _context.QuizQuestions.RemoveRange(questions);
+        }
+
+        // 8. Quiz'in kendisini sil
+        _context.Quizzes.Remove(quiz);
+
+        await _context.SaveChangesAsync(default);
     }
 
     public async Task<QuizDto> DuplicateQuizAsync(Guid id, Guid userId)

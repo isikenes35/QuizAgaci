@@ -21,9 +21,10 @@ export default function DashboardPage() {
     if (window.confirm("Bu quizi silmek istediğinize emin misiniz?")) {
       try {
         await deleteQuiz(id);
-        loadQuizzes();
-      } catch (err) {
+        setQuizzes(prev => prev.filter(q => q.id !== id));
+      } catch (err: any) {
         console.error("Failed to delete quiz", err);
+        alert(err.response?.data?.message || "Quiz silinirken bir hata oluştu.");
       }
     }
   };
