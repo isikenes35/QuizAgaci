@@ -125,54 +125,71 @@ public class QuizService : IQuizService
             .Select(g => g.Id)
             .ToListAsync();
 
-        // 3. Bu oturumlara veya sorulara bağlı tüm cevapları (Answer) sil
+        // 3. GameSession'lardaki CurrentQuestionId referanslarını temizle
+        var sessionsWithCurrentQ = await _context.GameSessions
+            .Where(gs => gs.CurrentQuestionId != null && questionIds.Contains(gs.CurrentQuestionId.Value))
+            .ToListAsync();
+        if (sessionsWithCurrentQ.Any())
+        {
+            foreach (var s in sessionsWithCurrentQ)
+            {
+                s.CurrentQuestionId = null;
+            }
+            await _context.SaveChangesAsync(default);
+        }
+
+        // 4. Bu oturumlara veya sorulara bağlı tüm cevapları (Answer) sil
         var answers = await _context.Answers
             .Where(a => sessionIds.Contains(a.GameSessionId) || questionIds.Contains(a.QuestionId))
             .ToListAsync();
         if (answers.Any())
         {
             _context.Answers.RemoveRange(answers);
+            await _context.SaveChangesAsync(default);
         }
 
-        // 4. Bu oturumlara bağlı tüm katılımcıları (GameParticipant) sil
+        // 5. Bu oturumlara bağlı tüm katılımcıları (GameParticipant) sil
         var participants = await _context.GameParticipants
             .Where(p => sessionIds.Contains(p.GameSessionId))
             .ToListAsync();
         if (participants.Any())
         {
             _context.GameParticipants.RemoveRange(participants);
+            await _context.SaveChangesAsync(default);
         }
 
-        // 5. Oyun oturumlarını (GameSession) sil
+        // 6. Oyun oturumlarını (GameSession) sil
         var sessions = await _context.GameSessions
             .Where(g => sessionIds.Contains(g.Id))
             .ToListAsync();
         if (sessions.Any())
         {
             _context.GameSessions.RemoveRange(sessions);
+            await _context.SaveChangesAsync(default);
         }
 
-        // 6. Sorulara ait seçenekleri (QuestionOption) sil
+        // 7. Sorulara ait seçenekleri (QuestionOption) sil
         var options = await _context.QuestionOptions
             .Where(o => questionIds.Contains(o.QuestionId))
             .ToListAsync();
         if (options.Any())
         {
             _context.QuestionOptions.RemoveRange(options);
+            await _context.SaveChangesAsync(default);
         }
 
-        // 7. Soruları (QuizQuestion) sil
+        // 8. Soruları (QuizQuestion) sil
         var questions = await _context.QuizQuestions
             .Where(q => q.QuizId == id)
             .ToListAsync();
         if (questions.Any())
         {
             _context.QuizQuestions.RemoveRange(questions);
+            await _context.SaveChangesAsync(default);
         }
 
-        // 8. Quiz'in kendisini sil
+        // 9. Artık hiçbir bağlı veri kalmadığı için Quiz'in kendisini sil
         _context.Quizzes.Remove(quiz);
-
         await _context.SaveChangesAsync(default);
     }
 

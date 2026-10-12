@@ -60,8 +60,15 @@ public class QuizzesController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteQuiz(Guid id)
     {
-        await _quizService.DeleteQuizAsync(id, GetUserId());
-        return NoContent();
+        try
+        {
+            await _quizService.DeleteQuizAsync(id, GetUserId());
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = ex.Message, detail = ex.InnerException?.Message });
+        }
     }
 
     [HttpPost("{id}/duplicate")]

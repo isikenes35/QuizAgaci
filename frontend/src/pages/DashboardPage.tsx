@@ -24,7 +24,10 @@ export default function DashboardPage() {
         setQuizzes(prev => prev.filter(q => q.id !== id));
       } catch (err: any) {
         console.error("Failed to delete quiz", err);
-        alert(err.response?.data?.message || "Quiz silinirken bir hata oluştu.");
+        const errorMsg = err.response?.data?.detail 
+          ? `${err.response.data.message}: ${err.response.data.detail}` 
+          : (err.response?.data?.message || err.message || "Quiz silinirken bir hata oluştu.");
+        alert(errorMsg);
       }
     }
   };
