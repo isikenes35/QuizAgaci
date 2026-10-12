@@ -256,10 +256,26 @@ export default function PlayerGamePage() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <div className="bg-white px-4 py-3 shadow-md sticky top-0 z-50 flex items-center justify-between max-w-2xl mx-auto w-full">
-        <span className="text-sm font-bold text-primary-700 bg-primary-50 px-3 py-1 rounded-full border border-primary-200 shadow-sm flex items-center gap-1">
-          <span>⚡</span>
-          <span>{Math.round(1000 + (1000 * (timeRemaining / Math.max(timeLimit || 30, 1))))} Puan</span>
-        </span>
+        {(() => {
+          const totalLimit = timeLimit || 30;
+          const elapsedSeconds = Math.max(0, totalLimit - timeRemaining);
+          const graceSeconds = Math.min(10, Math.max(0, totalLimit - 5));
+          const decayWindow = Math.max(totalLimit - graceSeconds, 1);
+
+          let currentPotentialScore = 2000;
+          if (elapsedSeconds > graceSeconds) {
+            const elapsedDecay = elapsedSeconds - graceSeconds;
+            const multiplier = Math.max(0, (decayWindow - elapsedDecay) / decayWindow);
+            currentPotentialScore = Math.round(1000 + (1000 * multiplier));
+          }
+
+          return (
+            <span className="text-sm font-bold text-primary-700 bg-primary-50 px-3 py-1 rounded-full border border-primary-200 shadow-sm flex items-center gap-1">
+              <span>⚡</span>
+              <span>{currentPotentialScore} Puan</span>
+            </span>
+          );
+        })()}
         <motion.div 
           animate={{ scale: [1.1, 1] }}
           transition={{ duration: 0.3 }}

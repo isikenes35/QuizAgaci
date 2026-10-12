@@ -24,6 +24,14 @@ export default function HostGamePage() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(-1);
   const [selectedCorrectAnswers, setSelectedCorrectAnswers] = useState<string[]>([]);
   
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => console.error(err));
+    } else {
+      document.exitFullscreen().catch(err => console.error(err));
+    }
+  };
+
   const lastTimeRef = useRef(timeRemaining);
 
   useEffect(() => {
@@ -422,33 +430,44 @@ export default function HostGamePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white px-6 py-3 shadow flex justify-between items-center">
-        <h1 className="text-2xl font-bold">{session.gameCode}</h1>
-        <div className="flex gap-4">
+    <div className={`bg-gray-50 flex flex-col ${viewState === 'question' ? 'h-screen max-h-screen overflow-hidden' : 'min-h-screen'}`}>
+      <header className="bg-white px-4 md:px-6 py-2 md:py-2.5 shadow flex justify-between items-center flex-shrink-0 z-10">
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl md:text-2xl font-black text-gray-800 tracking-wider">{session.gameCode}</h1>
+          <button 
+            type="button"
+            onClick={toggleFullscreen}
+            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2.5 py-1 rounded-md text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+            title="Tam Ekran Aç/Kapat (Projeksiyon Modu)"
+          >
+            <span>⛶</span>
+            <span className="hidden sm:inline">Tam Ekran</span>
+          </button>
+        </div>
+        <div className="flex items-center gap-2 md:gap-3">
           
           {viewState === 'question' && isQuestionActive && (
             <>
-              <button onClick={handlePause} className="bg-yellow-500 text-white px-4 py-2 rounded font-bold hover:bg-yellow-600">
+              <button onClick={handlePause} className="bg-yellow-500 text-white px-3 md:px-4 py-1.5 rounded font-bold text-sm md:text-base hover:bg-yellow-600">
                 Pause
               </button>
-              <button onClick={handleResume} className="bg-green-500 text-white px-4 py-2 rounded font-bold hover:bg-green-600">
+              <button onClick={handleResume} className="bg-green-500 text-white px-3 md:px-4 py-1.5 rounded font-bold text-sm md:text-base hover:bg-green-600">
                 Resume
               </button>
-              <button onClick={handleExtend} className="bg-purple-500 text-white px-4 py-2 rounded font-bold hover:bg-purple-600">
+              <button onClick={handleExtend} className="bg-purple-500 text-white px-3 md:px-4 py-1.5 rounded font-bold text-sm md:text-base hover:bg-purple-600">
                 +10s
               </button>
-              <button onClick={handleShowResults} className="bg-red-500 text-white px-4 py-2 rounded font-bold hover:bg-red-600">{currentQuestionIndex + 1 >= totalQuestions ? 'Testi Bitir' : 'Soruyu Bitir'}</button>
+              <button onClick={handleShowResults} className="bg-red-500 text-white px-3 md:px-4 py-1.5 rounded font-bold text-sm md:text-base hover:bg-red-600">{currentQuestionIndex + 1 >= totalQuestions ? 'Testi Bitir' : 'Soruyu Bitir'}</button>
             </>
           )}
 
           {viewState === 'question' && isQuestionActive && (
-            <button onClick={handleHideImage} className="bg-gray-800 text-white px-6 py-2 rounded font-bold hover:bg-gray-900">
+            <button onClick={handleHideImage} className="bg-gray-800 text-white px-4 md:px-6 py-1.5 rounded font-bold text-sm md:text-base hover:bg-gray-900">
               Görseli Gizle
             </button>
           )}
           {viewState === 'question' && !isQuestionActive && (
-            <button onClick={handleShowResults} className="bg-blue-500 text-white px-6 py-2 rounded font-bold hover:bg-blue-600">
+            <button onClick={handleShowResults} className="bg-blue-500 text-white px-4 md:px-6 py-1.5 rounded font-bold text-sm md:text-base hover:bg-blue-600">
               {currentQuestionIndex + 1 >= totalQuestions ? 'Sonuçları Gör' : 'Sonuçları Göster'}
             </button>
           )}
@@ -460,7 +479,7 @@ export default function HostGamePage() {
         </div>
       </header>
       
-      <main className={`flex-1 ${viewState === 'question' ? 'p-3 md:p-5 flex flex-col min-h-0' : 'p-8'}`}>
+      <main className={`flex-1 ${viewState === 'question' ? 'p-2 md:p-3 flex flex-col min-h-0 overflow-hidden' : 'p-8'}`}>
         {viewState === 'lobby' && (
           <div className="flex gap-8 h-full">
             {/* Left Side - Access Info */}
@@ -512,36 +531,46 @@ export default function HostGamePage() {
 
         {viewState === 'question' && currentQuestion && (() => {
           const hasImage = Boolean((currentQuestion.imagePath || currentQuestion.ImagePath) && !isImageHidden);
-          const currentPotentialScore = Math.round(1000 + (1000 * (timeRemaining / Math.max(timeLimit || 30, 1))));
+          const totalLimit = timeLimit || 30;
+          const elapsedSeconds = Math.max(0, totalLimit - timeRemaining);
+          const graceSeconds = Math.min(10, Math.max(0, totalLimit - 5));
+          const decayWindow = Math.max(totalLimit - graceSeconds, 1);
+
+          let currentPotentialScore = 2000;
+          if (elapsedSeconds > graceSeconds) {
+            const elapsedDecay = elapsedSeconds - graceSeconds;
+            const multiplier = Math.max(0, (decayWindow - elapsedDecay) / decayWindow);
+            currentPotentialScore = Math.round(1000 + (1000 * multiplier));
+          }
 
           return (
-            <div className="flex flex-col items-center flex-1 max-w-5xl mx-auto w-full justify-between">
+            <div className="flex flex-col items-center flex-1 min-h-0 w-full max-w-[96vw] 2xl:max-w-[92vw] mx-auto justify-between">
               
-              <div className="w-full">
-                <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2.5 overflow-hidden shadow-inner">
+              <div className="w-full flex-shrink-0">
+                <div className="w-full bg-gray-200 rounded-full h-2 mb-2 overflow-hidden shadow-inner">
                   <div 
-                    className="bg-primary-500 h-2.5 rounded-full transition-all duration-1000 ease-linear" 
+                    className="bg-primary-500 h-2 rounded-full transition-all duration-1000 ease-linear" 
                     style={{ width: `${(timeRemaining / Math.max(timeLimit || 30, 1)) * 100}%` }}
                   ></div>
                 </div>
 
-                <div className="flex justify-between w-full mb-3 items-center px-2">
-                   <div className="flex flex-col">
-                     <span className="text-gray-500 font-bold text-base md:text-lg uppercase tracking-wider">
+                <div className="flex justify-between w-full mb-1 items-center px-1">
+                   <div className="flex items-center gap-2.5">
+                     <span className="text-gray-500 font-extrabold text-sm md:text-base uppercase tracking-wider">
                         Soru {currentQuestionIndex + 1} / {totalQuestions || '?'}
                      </span>
-                     <span className="text-primary-600 font-semibold text-sm md:text-base">
+                     <span className="text-primary-600 font-bold text-xs md:text-sm bg-primary-50 px-2.5 py-0.5 rounded-full border border-primary-100">
                         Cevaplar: {useGameStore.getState().answersCount} / {participants.length}
-                        {useGameStore.getState().answersCount === participants.length && participants.length > 0 && " (Herkes Cevapladı!)"}
+                        {useGameStore.getState().answersCount === participants.length && participants.length > 0 && " (Tamamlandı)"}
                      </span>
                    </div>
-                   <div className="flex items-center gap-3">
-                      <div className="bg-primary-50 text-primary-700 px-3.5 py-1.5 rounded-full border border-primary-200 font-bold text-sm md:text-base flex items-center gap-1.5 shadow-sm">
+                   <div className="flex items-center gap-2 md:gap-3">
+                      <div className="bg-primary-50 text-primary-700 px-3 py-1 rounded-full border border-primary-200 font-bold text-sm md:text-base flex items-center gap-1.5 shadow-sm">
                         <span>⚡</span>
                         <span>{currentPotentialScore} Puan</span>
                       </div>
-                      <div className="bg-white px-5 py-1.5 rounded-full shadow border-2 border-gray-100 min-w-[70px] text-center">
-                        <span className={`text-3xl md:text-4xl font-black ${timeRemaining <= 5 ? 'text-red-500 animate-pulse' : 'text-gray-800'}`}>
+                      <div className="bg-white px-4 py-0.5 rounded-full shadow border-2 border-gray-100 min-w-[60px] text-center">
+                        <span className={`text-2xl md:text-3xl font-black ${timeRemaining <= 5 ? 'text-red-500 animate-pulse' : 'text-gray-800'}`}>
                           {timeRemaining}
                         </span>
                       </div>
@@ -549,34 +578,34 @@ export default function HostGamePage() {
                 </div>
               </div>
 
-              <h2 className={`${hasImage ? 'text-2xl md:text-3xl lg:text-4xl mb-3' : 'text-3xl md:text-5xl lg:text-6xl mb-8'} font-extrabold text-center text-gray-900 leading-snug px-4 max-w-4xl`}>
+              <h2 className={`${hasImage ? 'text-xl sm:text-2xl md:text-3xl lg:text-4xl my-1' : 'text-3xl md:text-5xl lg:text-6xl my-auto'} font-black text-center text-gray-900 leading-snug px-4 max-w-6xl flex-shrink-0 line-clamp-2`}>
                 {currentQuestion.questionText || currentQuestion.QuestionText}
               </h2>
 
               {hasImage && (
-                <div className="w-full max-w-5xl flex-1 min-h-[240px] max-h-[50vh] bg-white p-3 rounded-2xl shadow-lg border border-gray-100 mb-3 flex items-center justify-center overflow-hidden">
+                <div className="w-full flex-1 min-h-0 bg-white p-2 md:p-3 rounded-2xl shadow-md border border-gray-100 my-1 md:my-1.5 flex items-center justify-center overflow-hidden">
                   <img 
                     src={getImageUrl(currentQuestion.imagePath || currentQuestion?.ImagePath)} 
                     alt="Soru görseli" 
-                    className="w-full h-full max-h-[46vh] object-contain rounded-xl" 
+                    className="w-full h-full max-h-full max-w-full object-contain rounded-xl" 
                   />
                 </div>
               )}
 
               {(currentQuestion.imagePath || currentQuestion.ImagePath) && isImageHidden && (
-                <div className="w-full max-w-4xl bg-gray-100 p-4 rounded-2xl shadow-inner border border-gray-200 mb-3 h-36 flex items-center justify-center">
-                   <span className="text-xl font-bold text-gray-400">Görsel şu an gizli</span>
+                <div className="w-full flex-1 min-h-0 bg-gray-100 p-4 rounded-2xl shadow-inner border border-gray-200 my-2 flex items-center justify-center">
+                   <span className="text-xl md:text-2xl font-bold text-gray-400">Görsel şu an gizli</span>
                 </div>
               )}
 
               {((currentQuestion.options || currentQuestion.Options) || []).length > 0 && String(currentQuestion.type || currentQuestion.Type || '').toLowerCase() !== 'openended' && (
-                <div className={`grid grid-cols-1 sm:grid-cols-2 gap-2.5 md:gap-3 w-full max-w-4xl ${hasImage ? 'mt-1' : 'mt-auto'}`}>
+                <div className={`grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3 w-full flex-shrink-0 ${hasImage ? 'mt-1' : 'my-auto max-w-5xl'}`}>
                   {(currentQuestion.options || currentQuestion.Options).map((option: any, optIdx: number) => {
                      const colors = ['bg-red-500', 'bg-blue-500', 'bg-yellow-500', 'bg-green-500', 'bg-purple-500', 'bg-pink-500'];
                      const bgColor = colors[optIdx % colors.length];
                      return (
-                       <div key={option.id || option.Id} className={`${bgColor} text-white px-4 py-2.5 md:py-3 rounded-xl shadow min-h-[48px] md:min-h-[54px] flex items-center justify-center text-center`}>
-                          <span className="text-base md:text-lg lg:text-xl font-bold drop-shadow-sm">
+                       <div key={option.id || option.Id} className={`${bgColor} text-white px-4 py-2 md:py-3 rounded-xl shadow min-h-[46px] md:min-h-[52px] max-h-[64px] flex items-center justify-center text-center`}>
+                          <span className="text-base md:text-lg lg:text-xl font-bold drop-shadow-sm line-clamp-2">
                             {option.optionText || option.OptionText}
                           </span>
                        </div>
