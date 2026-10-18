@@ -64,8 +64,9 @@ export function useGameTimer({
   useEffect(() => {
     if (!active) return;
 
-    anchorRef.current = { at: performance.now(), remaining: lastSecondRef.current };
-    if (lastSecondRef.current > 0) completedRef.current = false;
+    const initial = serverRemaining != null ? serverRemaining : lastSecondRef.current;
+    anchorRef.current = { at: performance.now(), remaining: initial };
+    if (initial > 0) completedRef.current = false;
 
     const writeBar = (progress: number) => {
       if (barRef?.current) {
