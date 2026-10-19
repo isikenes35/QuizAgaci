@@ -247,6 +247,7 @@ public class GameSessionsController : ControllerBase
             currentAnswersCount,
             session.Status,
             currentTimeRemaining = remainingTime,
+            isPaused = timerService.IsTimerPaused(id),
             currentQuestion = question != null ? new 
             { 
                 question.Id, 

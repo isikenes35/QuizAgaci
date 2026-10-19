@@ -44,6 +44,16 @@ public class SignalRNotifier : ISignalRNotifier
         await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("TimerTick", new { remainingSeconds });
     }
 
+    public async Task NotifyTimerPausedAsync(Guid sessionId, int remainingSeconds)
+    {
+        await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("TimerPaused", new { remainingSeconds });
+    }
+
+    public async Task NotifyTimerResumedAsync(Guid sessionId, int remainingSeconds)
+    {
+        await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("TimerResumed", new { remainingSeconds });
+    }
+
     public async Task NotifyQuestionFinishedAsync(Guid sessionId)
     {
         await _hubContext.Clients.Group(sessionId.ToString()).SendAsync("QuestionFinished");

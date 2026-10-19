@@ -45,6 +45,7 @@ public class GameTimerService : BackgroundService, IGameTimerService
         if (_activeTimers.TryGetValue(sessionId, out var state))
         {
             state.IsPaused = true;
+            NotifyInBackground(() => _notifier.NotifyTimerPausedAsync(sessionId, state.RemainingSeconds));
         }
     }
 
@@ -53,6 +54,7 @@ public class GameTimerService : BackgroundService, IGameTimerService
         if (_activeTimers.TryGetValue(sessionId, out var state))
         {
             state.IsPaused = false;
+            NotifyInBackground(() => _notifier.NotifyTimerResumedAsync(sessionId, state.RemainingSeconds));
         }
     }
 
@@ -61,6 +63,7 @@ public class GameTimerService : BackgroundService, IGameTimerService
         if (_activeTimers.TryGetValue(sessionId, out var state))
         {
             state.RemainingSeconds += additionalSeconds;
+            NotifyInBackground(() => _notifier.NotifyTimerTickAsync(sessionId, state.RemainingSeconds));
         }
     }
 
@@ -76,6 +79,26 @@ public class GameTimerService : BackgroundService, IGameTimerService
             return state.RemainingSeconds;
         }
         return null;
+    }
+
+    public bool IsTimerPaused(Guid sessionId)
+    {
+        return _activeTimers.TryGetValue(sessionId, out var state) && state.IsPaused;
+    }
+
+    private void NotifyInBackground(Func<Task> notification)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await notification();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to broadcast timer notification");
+            }
+        });
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

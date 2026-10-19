@@ -12,6 +12,8 @@ public interface ISignalRNotifier
     Task NotifyAnswerSubmittedAsync(Guid sessionId, Guid participantId);
     Task NotifyQuestionStartedAsync(Guid sessionId, object questionDto, int timeLimit);
     Task NotifyTimerTickAsync(Guid sessionId, int remainingSeconds);
+    Task NotifyTimerPausedAsync(Guid sessionId, int remainingSeconds);
+    Task NotifyTimerResumedAsync(Guid sessionId, int remainingSeconds);
     Task NotifyQuestionFinishedAsync(Guid sessionId);
     
     Task NotifyLeaderboardUpdatedAsync(Guid sessionId, List<LeaderboardEntryDto> leaderboard);

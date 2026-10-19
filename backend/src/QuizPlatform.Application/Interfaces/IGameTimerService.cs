@@ -10,4 +10,5 @@ public interface IGameTimerService
     void ExtendTimer(Guid sessionId, int additionalSeconds);
     void StopTimer(Guid sessionId);
     int? GetRemainingTime(Guid sessionId);
+    bool IsTimerPaused(Guid sessionId);
 }
