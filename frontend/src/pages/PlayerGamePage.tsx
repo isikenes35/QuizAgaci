@@ -237,8 +237,9 @@ export default function PlayerGamePage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {(currentQuestion?.options || currentQuestion?.Options || []).map((option: any, optIdx: number) => {
-                const optionId = option.id || option.Id;
-                const optionText = option.optionText || option.OptionText;
+                if (!option) return null;
+                const optionId = option.id ?? option.Id ?? String(optIdx);
+                const optionText = option.optionText ?? option.OptionText ?? (typeof option === 'string' ? option : `Şık ${optIdx + 1}`);
                 const isSelected = selectedOptions.includes(optionId);
                 const isCorrectOption = questionResults.correctOptionIds?.includes(optionId);
 
@@ -283,7 +284,8 @@ export default function PlayerGamePage() {
 
   const isOpenEnded = String(currentQuestion?.type || currentQuestion?.Type || '').toLowerCase() === 'openended';
   const isMultiSelect = String(currentQuestion?.type || currentQuestion?.Type || '').toLowerCase() === 'multipleselect';
-  const questionOptions = currentQuestion?.options || currentQuestion?.Options || [];
+  const rawOptions = currentQuestion?.options || currentQuestion?.Options;
+  const questionOptions = Array.isArray(rawOptions) ? rawOptions : [];
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -337,8 +339,9 @@ export default function PlayerGamePage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 h-64">
                 {questionOptions.map((option: any, optIdx: number) => {
-                  const optionId = option.id || option.Id;
-                  const optionText = option.optionText || option.OptionText;
+                  if (!option) return null;
+                  const optionId = option.id ?? option.Id ?? String(optIdx);
+                  const optionText = option.optionText ?? option.OptionText ?? (typeof option === 'string' ? option : `Şık ${optIdx + 1}`);
                   const isSelected = selectedOptions.includes(optionId);
 
                   return (

@@ -42,7 +42,8 @@ export const QuestionDisplay = memo(function QuestionDisplay({
 
   const imageSrc = currentQuestion.imagePath || currentQuestion.ImagePath;
   const questionText = currentQuestion.questionText || currentQuestion.QuestionText;
-  const questionOptions = currentQuestion.options || currentQuestion.Options || [];
+  const rawOptions = currentQuestion.options || currentQuestion.Options;
+  const questionOptions = Array.isArray(rawOptions) ? rawOptions : [];
   const questionType = String(currentQuestion.type || currentQuestion.Type || '').toLowerCase();
   const hasOptions = questionOptions.length > 0 && questionType !== 'openended';
 
@@ -123,12 +124,14 @@ export const QuestionDisplay = memo(function QuestionDisplay({
           }`}
         >
           {questionOptions.map((option: any, optIdx: number) => {
+            if (!option) return null;
             const colors = ['bg-red-500', 'bg-blue-500', 'bg-yellow-500', 'bg-green-500', 'bg-purple-500', 'bg-pink-500'];
             const bgColor = colors[optIdx % colors.length];
-            const optionText = option.optionText || option.OptionText;
+            const optionText = option.optionText ?? option.OptionText ?? (typeof option === 'string' ? option : `Şık ${optIdx + 1}`);
+            const optionKey = option.id ?? option.Id ?? String(optIdx);
             return (
               <div
-                key={option.id || option.Id}
+                key={optionKey}
                 className={`${bgColor} text-white px-4 py-2 md:py-3 rounded-xl shadow min-h-[46px] md:min-h-[52px] max-h-[64px] flex items-center justify-center text-center`}
               >
                 <span className="text-base md:text-lg lg:text-xl font-bold drop-shadow-sm line-clamp-2">
