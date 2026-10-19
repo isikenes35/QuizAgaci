@@ -20,6 +20,7 @@ export const QuestionDisplay = memo(function QuestionDisplay({
   const isImageHidden = useQuestionStore((s) => s.isImageHidden);
   const answersCount = useQuestionStore((s) => s.answersCount);
   const isQuestionActive = useQuestionStore((s) => s.isQuestionActive);
+  const isTimerPaused = useQuestionStore((s) => s.isTimerPaused);
   const participantsList = useSessionStore((s) => s.participants);
 
   const barRef = useRef<HTMLDivElement>(null);
@@ -27,6 +28,7 @@ export const QuestionDisplay = memo(function QuestionDisplay({
     duration: timeLimit || 30,
     serverRemaining: isQuestionActive ? timeRemaining : null,
     active: isQuestionActive,
+    paused: isTimerPaused,
     barRef
   });
 

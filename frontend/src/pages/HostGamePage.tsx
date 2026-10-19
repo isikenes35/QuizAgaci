@@ -32,6 +32,7 @@ export default function HostGamePage() {
   const setIsImageHidden = useQuestionStore((s) => s.setIsImageHidden);
   const incrementAnswerCount = useQuestionStore((s) => s.incrementAnswerCount);
   const setAnswersCount = useQuestionStore((s) => s.setAnswersCount);
+  const setTimerPaused = useQuestionStore((s) => s.setTimerPaused);
 
   const leaderboard = useResultsStore((s) => s.leaderboard);
   const setLeaderboard = useResultsStore((s) => s.setLeaderboard);
@@ -164,6 +165,9 @@ export default function HostGamePage() {
               if (idx !== -1) setCurrentQuestionIndex(idx);
               setCurrentQuestion(q, state.currentTimeRemaining || 30);
               setAnswersCount(state.currentAnswersCount || 0);
+              if (state.isPaused !== undefined) {
+                setTimerPaused(state.isPaused);
+              }
               if (state.currentTimeRemaining === null || state.currentTimeRemaining === 0) {
                 endQuestion();
               }
@@ -175,7 +179,7 @@ export default function HostGamePage() {
     }).catch(console.error);
 
     getParticipants(id).then(setParticipants).catch(console.error);
-  }, [id, setSession, setParticipants, setCurrentQuestion, setAnswersCount, endQuestion]);
+  }, [id, setSession, setParticipants, setCurrentQuestion, setAnswersCount, endQuestion, setTimerPaused]);
 
   const handlers = {
     onPlayerJoined: (p: any) => addParticipant(p),
@@ -183,6 +187,7 @@ export default function HostGamePage() {
       setCurrentQuestion(question, timeLimit || 30);
       setCurrentQuestionIndex((prev) => prev + 1);
       setViewState('question');
+      setTimerPaused(false);
     },
     onLeaderboardUpdated: (data: any) => {
       setLeaderboard(data);
@@ -194,6 +199,14 @@ export default function HostGamePage() {
       loadPendingAnswers();
     },
     onTimerTick: (data: { remainingSeconds: number }) => updateTimer(data.remainingSeconds),
+    onTimerPaused: (data: { remainingSeconds: number }) => {
+      setTimerPaused(true);
+      updateTimer(data.remainingSeconds);
+    },
+    onTimerResumed: (data: { remainingSeconds: number }) => {
+      setTimerPaused(false);
+      updateTimer(data.remainingSeconds);
+    },
     onAnswerSubmitted: () => incrementAnswerCount(),
     onImageHidden: () => setIsImageHidden(true),
     onQuestionFinished: () => {

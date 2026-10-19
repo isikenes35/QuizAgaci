@@ -6,6 +6,8 @@ export interface GameHubHandlers {
   onPlayerJoined?: (participant: GameParticipant) => void;
   onQuestionStarted?: (question: any, timeLimit: number) => void;
   onTimerTick?: (data: { remainingSeconds: number }) => void;
+  onTimerPaused?: (data: { remainingSeconds: number }) => void;
+  onTimerResumed?: (data: { remainingSeconds: number }) => void;
   onQuestionFinished?: () => void;
   onAnswerSubmitted?: (data: any) => void;
   onLeaderboardUpdated?: (data: any) => void;
@@ -65,6 +67,10 @@ export function useGameHubConnection(
         ),
       () =>
         gameHubService.onTimerTick((data) => handlersRef.current.onTimerTick?.(data)),
+      () =>
+        gameHubService.onTimerPaused((data) => handlersRef.current.onTimerPaused?.(data)),
+      () =>
+        gameHubService.onTimerResumed((data) => handlersRef.current.onTimerResumed?.(data)),
       () => gameHubService.onQuestionFinished(() => handlersRef.current.onQuestionFinished?.()),
       () =>
         gameHubService.onAnswerSubmitted((data) =>

@@ -6,11 +6,13 @@ interface QuestionStore {
   timeLimit: number;
   timeRemaining: number;
   isQuestionActive: boolean;
+  isTimerPaused: boolean;
   answersCount: number;
   isImageHidden: boolean;
 
   setCurrentQuestion: (question: any, timeLimit: number) => void;
   updateTimer: (remaining: number) => void;
+  setTimerPaused: (paused: boolean) => void;
   endQuestion: () => void;
   incrementAnswerCount: () => void;
   setAnswersCount: (count: number) => void;
@@ -23,6 +25,7 @@ export const useQuestionStore = create<QuestionStore>((set) => ({
   timeLimit: 0,
   timeRemaining: 0,
   isQuestionActive: false,
+  isTimerPaused: false,
   answersCount: 0,
   isImageHidden: false,
 
@@ -32,6 +35,7 @@ export const useQuestionStore = create<QuestionStore>((set) => ({
       timeLimit,
       timeRemaining: timeLimit,
       isQuestionActive: question != null,
+      isTimerPaused: false,
       answersCount: 0,
       isImageHidden: false
     });
@@ -45,7 +49,9 @@ export const useQuestionStore = create<QuestionStore>((set) => ({
       timeLimit: remaining > state.timeLimit ? remaining : state.timeLimit
     })),
 
-  endQuestion: () => set({ isQuestionActive: false }),
+  setTimerPaused: (paused) => set({ isTimerPaused: paused }),
+
+  endQuestion: () => set({ isQuestionActive: false, isTimerPaused: false }),
 
   incrementAnswerCount: () => set((state) => ({ answersCount: state.answersCount + 1 })),
   setAnswersCount: (answersCount) => set({ answersCount }),
@@ -57,6 +63,7 @@ export const useQuestionStore = create<QuestionStore>((set) => ({
       timeLimit: 0,
       timeRemaining: 0,
       isQuestionActive: false,
+      isTimerPaused: false,
       answersCount: 0,
       isImageHidden: false
     })

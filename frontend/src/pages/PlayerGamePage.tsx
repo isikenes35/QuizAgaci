@@ -17,10 +17,12 @@ export default function PlayerGamePage() {
   const timeRemaining = useQuestionStore((s) => s.timeRemaining);
   const timeLimit = useQuestionStore((s) => s.timeLimit);
   const isQuestionActive = useQuestionStore((s) => s.isQuestionActive);
+  const isTimerPaused = useQuestionStore((s) => s.isTimerPaused);
   const updateTimer = useQuestionStore((s) => s.updateTimer);
   const endQuestion = useQuestionStore((s) => s.endQuestion);
   const setCurrentQuestion = useQuestionStore((s) => s.setCurrentQuestion);
   const setIsImageHidden = useQuestionStore((s) => s.setIsImageHidden);
+  const setTimerPaused = useQuestionStore((s) => s.setTimerPaused);
 
   const questionResults = useResultsStore((s) => s.questionResults);
   const setQuestionResults = useResultsStore((s) => s.setQuestionResults);
@@ -67,8 +69,17 @@ export default function PlayerGamePage() {
       setSelectedOptions([]);
       setTextAnswer('');
       setAudioPlayed(false);
+      setTimerPaused(false);
     },
     onTimerTick: (data: { remainingSeconds: number }) => updateTimer(data.remainingSeconds),
+    onTimerPaused: (data: { remainingSeconds: number }) => {
+      setTimerPaused(true);
+      updateTimer(data.remainingSeconds);
+    },
+    onTimerResumed: (data: { remainingSeconds: number }) => {
+      setTimerPaused(false);
+      updateTimer(data.remainingSeconds);
+    },
     onQuestionFinished: () => endQuestion(),
     onShowQuestionResults: (data: any) => setQuestionResults(data),
     onManualReviewRequired: () => setNeedsManualReview(true),
@@ -91,6 +102,9 @@ export default function PlayerGamePage() {
         if (state.currentQuestion) {
           setCurrentQuestion(state.currentQuestion, state.currentTimeRemaining || 30);
           updateTimer(state.currentTimeRemaining || 0);
+          if (state.isPaused !== undefined) {
+            setTimerPaused(state.isPaused);
+          }
           if (state.currentTimeRemaining === null || state.currentTimeRemaining === 0) {
             endQuestion();
           }
@@ -98,13 +112,14 @@ export default function PlayerGamePage() {
         }
       }).catch(console.error);
     }
-  }, [sessionId, setCurrentQuestion, updateTimer, endQuestion, setIsImageHidden]);
+  }, [sessionId, setCurrentQuestion, updateTimer, endQuestion, setIsImageHidden, setTimerPaused]);
 
   const timerDuration = timeLimit || 30;
   const { secondsRemaining } = useGameTimer({
     duration: timerDuration,
     serverRemaining: isQuestionActive ? timeRemaining : null,
-    active: isQuestionActive
+    active: isQuestionActive,
+    paused: isTimerPaused
   });
 
   useEffect(() => {

@@ -99,9 +99,19 @@ class GameHubService {
     this.connection?.on('QuestionStarted', callback);
   }
 
-  public onTimerTick(callback: (data: { remainingSeconds: number }) => void) {
+public onTimerTick(callback: (data: { remainingSeconds: number }) => void) {
     this.connection?.off('TimerTick');
     this.connection?.on('TimerTick', callback);
+  }
+
+  public onTimerPaused(callback: (data: { remainingSeconds: number }) => void) {
+    this.connection?.off('TimerPaused');
+    this.connection?.on('TimerPaused', callback);
+  }
+
+  public onTimerResumed(callback: (data: { remainingSeconds: number }) => void) {
+    this.connection?.off('TimerResumed');
+    this.connection?.on('TimerResumed', callback);
   }
 
   public onQuestionFinished(callback: () => void) {
