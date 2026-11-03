@@ -132,6 +132,8 @@ public class GameSessionsController : ControllerBase
             QuestionText = question.QuestionText, 
             Type = question.Type,
             ImagePath = question.ImagePath,
+            TimeLimit = timeLimit,
+            MaxScore = question.MaxScore,
             Options = question.Options.Select(o => new { o.Id, o.OptionText }).ToList()
         };
         await notifier.NotifyQuestionStartedAsync(session.Id, qDto, timeLimit);
@@ -176,10 +178,12 @@ public class GameSessionsController : ControllerBase
         var pendingAnswersCount = await dbContext.Answers.CountAsync(a => a.GameSessionId == id && a.QuestionId == session.CurrentQuestionId && a.ReviewStatus == QuizPlatform.Domain.Enums.AnswerReviewStatus.Pending);
         if (pendingAnswersCount > 0)
         {
-            await notifier.NotifyQuestionFinishedAsync(session.Id);
             await notifier.NotifyManualReviewRequiredAsync(session.Id);
+            await notifier.NotifyQuestionFinishedAsync(session.Id);
             return Ok();
         }
+
+        await notifier.NotifyQuestionFinishedAsync(session.Id);
 
         // 1. Fetch current question to broadcast correct answers
         var question = await dbContext.QuizQuestions.Include(q => q.Options)
@@ -190,10 +194,14 @@ public class GameSessionsController : ControllerBase
         {
             var correctOptionIds = question.Options.Where(o => o.IsCorrect).Select(o => o.Id).ToList();
             
-            var participantCorrectness = await dbContext.Answers
+            var answersForQuestion = await dbContext.Answers
                 .Where(a => a.GameSessionId == id && a.QuestionId == session.CurrentQuestionId)
                 .Select(a => new { a.ParticipantId, a.IsCorrect })
-                .ToDictionaryAsync(a => a.ParticipantId.ToString(), a => a.IsCorrect);
+                .ToListAsync();
+
+            var participantCorrectness = answersForQuestion
+                .GroupBy(a => a.ParticipantId.ToString())
+                .ToDictionary(g => g.Key, g => g.Last().IsCorrect);
                 
             resultsData = new { correctOptionIds, explanation = question.ExplanationText, participantCorrectness };
         }
@@ -237,23 +245,58 @@ public class GameSessionsController : ControllerBase
         var question = session.CurrentQuestionId.HasValue ? await dbContext.QuizQuestions.Include(q => q.Options).FirstOrDefaultAsync(q => q.Id == session.CurrentQuestionId.Value) : null;
 
         var currentAnswersCount = 0;
+        var hasSubmitted = false;
+        string? submittedTextAnswer = null;
+        string? submittedOptionIdsJson = null;
+        var needsManualReview = false;
+
         if (session.CurrentQuestionId.HasValue)
         {
             currentAnswersCount = await dbContext.Answers.CountAsync(a => a.GameSessionId == id && a.QuestionId == session.CurrentQuestionId.Value);
+
+            var callerIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (Guid.TryParse(callerIdStr, out var callerId))
+            {
+                var existingAnswer = await dbContext.Answers
+                    .FirstOrDefaultAsync(a => a.GameSessionId == id && a.QuestionId == session.CurrentQuestionId.Value && a.ParticipantId == callerId);
+                if (existingAnswer != null)
+                {
+                    hasSubmitted = true;
+                    submittedTextAnswer = existingAnswer.TextAnswer;
+                    submittedOptionIdsJson = existingAnswer.SelectedOptionIds;
+                }
+            }
+
+            if (remainingTime == null || remainingTime <= 0)
+            {
+                needsManualReview = await dbContext.Answers.AnyAsync(a =>
+                    a.GameSessionId == id &&
+                    a.QuestionId == session.CurrentQuestionId.Value &&
+                    a.ReviewStatus == QuizPlatform.Domain.Enums.AnswerReviewStatus.Pending);
+            }
         }
+
+        var timeLimit = question?.TimeLimit ?? session.CurrentQuestionTimeLimit ?? 30;
 
         return Ok(new
         {
             currentAnswersCount,
             session.Status,
+            timeLimit,
             currentTimeRemaining = remainingTime,
             isPaused = timerService.IsTimerPaused(id),
+            hasSubmitted,
+            submittedTextAnswer,
+            submittedOptionIdsJson,
+            needsManualReview,
             currentQuestion = question != null ? new 
             { 
                 question.Id, 
                 question.QuestionText, 
                 question.Type,
                 question.ImagePath,
+                TimeLimit = timeLimit,
+                question.MaxScore,
                 Options = question.Options.Select(o => new { o.Id, o.OptionText }).ToList()
             } : null,
             session.IsImageHidden

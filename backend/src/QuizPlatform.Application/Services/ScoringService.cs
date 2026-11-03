@@ -55,11 +55,19 @@ public class ScoringService : IScoringService
             if (string.IsNullOrWhiteSpace(textAnswer))
                 return false;
             
-            // Get accepted answers from QuestionOption
+            // Get accepted answers from QuestionOption (all non-empty options for OpenEnded are accepted answers)
             var acceptedAnswers = question.Options
-                .Where(o => o.IsCorrect)
+                .Where(o => o.IsCorrect && !string.IsNullOrWhiteSpace(o.OptionText))
                 .Select(o => o.OptionText)
                 .ToList();
+
+            if (!acceptedAnswers.Any())
+            {
+                acceptedAnswers = question.Options
+                    .Where(o => !string.IsNullOrWhiteSpace(o.OptionText))
+                    .Select(o => o.OptionText)
+                    .ToList();
+            }
             
             if (!acceptedAnswers.Any())
                 return false; // No accepted answers defined, needs manual review

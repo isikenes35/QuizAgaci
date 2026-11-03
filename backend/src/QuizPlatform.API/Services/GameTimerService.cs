@@ -121,11 +121,6 @@ public class GameTimerService : BackgroundService, IGameTimerService
                     {
                         await _notifier.NotifyTimerTickAsync(sessionId, 0);
                         await _notifier.NotifyQuestionFinishedAsync(sessionId);
-                        
-                        if (state.NeedsManualReview)
-                        {
-                            await _notifier.NotifyManualReviewRequiredAsync(sessionId);
-                        }
 
                         StopTimer(sessionId);
                     }
