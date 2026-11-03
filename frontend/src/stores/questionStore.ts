@@ -10,7 +10,7 @@ interface QuestionStore {
   answersCount: number;
   isImageHidden: boolean;
 
-  setCurrentQuestion: (question: any, timeLimit: number) => void;
+  setCurrentQuestion: (question: any, timeLimit: number, initialRemaining?: number) => void;
   updateTimer: (remaining: number) => void;
   setTimerPaused: (paused: boolean) => void;
   endQuestion: () => void;
@@ -29,11 +29,11 @@ export const useQuestionStore = create<QuestionStore>((set) => ({
   answersCount: 0,
   isImageHidden: false,
 
-  setCurrentQuestion: (question, timeLimit) => {
+  setCurrentQuestion: (question, timeLimit, initialRemaining) => {
     set({
       currentQuestion: question,
       timeLimit,
-      timeRemaining: timeLimit,
+      timeRemaining: initialRemaining !== undefined ? initialRemaining : timeLimit,
       isQuestionActive: question != null,
       isTimerPaused: false,
       answersCount: 0,

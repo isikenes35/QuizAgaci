@@ -1,17 +1,19 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
 import { useQuestionStore } from '../stores/questionStore';
 import { useResultsStore } from '../stores/resultsStore';
 import { useSessionStore } from '../stores/sessionStore';
 import { useGameHubConnection } from '../hooks/useGameHubConnection';
 import { useGameTimer } from '../hooks/useGameTimer';
 import api from '../services/api/axiosConfig';
-import { getSessionState } from '../services/api/gameApi';
+import { getSessionByCode, getSessionState } from '../services/api/gameApi';
 import { motion } from 'framer-motion';
 import { playPop, playCorrect, playWrong } from '../utils/audioSystem';
 import { getPlayerParticipantId } from '../utils/tokenHelper';
 import { calculateCurrentScore } from '../utils/scoring';
 
 export default function PlayerGamePage() {
+  const { code } = useParams<{ code: string }>();
 
   const currentQuestion = useQuestionStore((s) => s.currentQuestion);
   const timeRemaining = useQuestionStore((s) => s.timeRemaining);
@@ -30,6 +32,7 @@ export default function PlayerGamePage() {
   const setNeedsManualReview = useResultsStore((s) => s.setNeedsManualReview);
 
   const session = useSessionStore((s) => s.session);
+  const setSession = useSessionStore((s) => s.setSession);
 
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [textAnswer, setTextAnswer] = useState('');
@@ -37,7 +40,26 @@ export default function PlayerGamePage() {
   const [audioPlayed, setAudioPlayed] = useState(false);
   const [finalLeaderboard, setFinalLeaderboard] = useState<any[] | null>(null);
 
-  const sessionId = session?.id ?? new URLSearchParams(window.location.search).get('sessionId') ?? undefined;
+  useEffect(() => {
+    if (!session && code) {
+      getSessionByCode(code)
+        .then((s) => {
+          setSession(s);
+          if (s?.id) {
+            sessionStorage.setItem('currentSessionId', s.id);
+          }
+        })
+        .catch(console.error);
+    } else if (session?.id) {
+      sessionStorage.setItem('currentSessionId', session.id);
+    }
+  }, [session, code, setSession]);
+
+  const sessionId =
+    session?.id ??
+    new URLSearchParams(window.location.search).get('sessionId') ??
+    sessionStorage.getItem('currentSessionId') ??
+    undefined;
 
   const handleSubmit = useCallback(async () => {
     if (!sessionId || !currentQuestion) return;
@@ -63,13 +85,16 @@ export default function PlayerGamePage() {
   }, [sessionId, currentQuestion, selectedOptions, textAnswer]);
 
   const handlers = {
-    onQuestionStarted: (question: any, timeLimit: number) => {
-      setCurrentQuestion(question, timeLimit || 30);
+    onQuestionStarted: (question: any, qTimeLimit: number) => {
+      const limit = qTimeLimit || question?.timeLimit || question?.TimeLimit || 30;
+      setCurrentQuestion(question, limit);
       setSubmitted(false);
       setSelectedOptions([]);
       setTextAnswer('');
       setAudioPlayed(false);
       setTimerPaused(false);
+      useResultsStore.getState().clearQuestionResults();
+      useResultsStore.getState().setNeedsManualReview(false);
     },
     onTimerTick: (data: { remainingSeconds: number }) => updateTimer(data.remainingSeconds),
     onTimerPaused: (data: { remainingSeconds: number }) => {
@@ -81,8 +106,15 @@ export default function PlayerGamePage() {
       updateTimer(data.remainingSeconds);
     },
     onQuestionFinished: () => endQuestion(),
-    onShowQuestionResults: (data: any) => setQuestionResults(data),
-    onManualReviewRequired: () => setNeedsManualReview(true),
+    onShowQuestionResults: (data: any) => {
+      endQuestion();
+      setNeedsManualReview(false);
+      setQuestionResults(data);
+    },
+    onManualReviewRequired: () => {
+      endQuestion();
+      setNeedsManualReview(true);
+    },
     onGameResumed: () => setNeedsManualReview(false),
     onImageHidden: () => setIsImageHidden(true),
     onGameEnded: (data: any) => {
@@ -90,43 +122,59 @@ export default function PlayerGamePage() {
       endQuestion();
       setCurrentQuestion(null, 0);
       setNeedsManualReview(false);
-      setFinalLeaderboard(data);
+      setFinalLeaderboard(Array.isArray(data) ? data : []);
     }
   };
 
-  useGameHubConnection(sessionId || undefined, handlers);
+  useGameHubConnection(sessionId || undefined, handlers, {
+    getToken: () => sessionStorage.getItem('playerToken') || localStorage.getItem('playerToken'),
+    enabled: !!sessionId
+  });
 
   useEffect(() => {
     if (sessionId) {
       getSessionState(sessionId).then((state) => {
         if (state.currentQuestion) {
-          setCurrentQuestion(state.currentQuestion, state.currentTimeRemaining || 30);
-          updateTimer(state.currentTimeRemaining || 0);
+          const qTimeLimit = state.timeLimit || state.currentQuestion?.timeLimit || state.currentQuestion?.TimeLimit || 30;
+          const remaining = state.currentTimeRemaining ?? 0;
+          setCurrentQuestion(state.currentQuestion, qTimeLimit, remaining);
           if (state.isPaused !== undefined) {
             setTimerPaused(state.isPaused);
           }
-          if (state.currentTimeRemaining === null || state.currentTimeRemaining === 0) {
+          if (state.currentTimeRemaining === null || state.currentTimeRemaining <= 0) {
             endQuestion();
           }
-          setIsImageHidden(state.isImageHidden);
+          setIsImageHidden(Boolean(state.isImageHidden));
+          setSubmitted(Boolean(state.hasSubmitted));
+          if (state.submittedTextAnswer) {
+            setTextAnswer(state.submittedTextAnswer);
+          }
+          if (state.submittedOptionIdsJson) {
+            try {
+              const parsed = JSON.parse(state.submittedOptionIdsJson);
+              if (Array.isArray(parsed)) setSelectedOptions(parsed);
+            } catch {
+              // ignore malformed JSON
+            }
+          }
+          useResultsStore.getState().clearQuestionResults();
+          useResultsStore.getState().setNeedsManualReview(Boolean(state.needsManualReview));
         }
       }).catch(console.error);
     }
   }, [sessionId, setCurrentQuestion, updateTimer, endQuestion, setIsImageHidden, setTimerPaused]);
 
   const timerDuration = timeLimit || 30;
+  const currentQuestionId = currentQuestion?.id || currentQuestion?.Id || null;
   const { secondsRemaining } = useGameTimer({
     duration: timerDuration,
     serverRemaining: isQuestionActive ? timeRemaining : null,
     active: isQuestionActive,
-    paused: isTimerPaused
+    paused: isTimerPaused,
+    questionKey: currentQuestionId
   });
 
-  useEffect(() => {
-    if (isQuestionActive) {
-      updateTimer(secondsRemaining);
-    }
-  }, [secondsRemaining, isQuestionActive, updateTimer]);
+  const displayTimeRemaining = isQuestionActive ? secondsRemaining : 0;
 
   const handleOptionSelect = useCallback((optionId: string) => {
     playPop();
@@ -140,33 +188,40 @@ export default function PlayerGamePage() {
     }
   }, [currentQuestion]);
 
+  const evaluatePlayerCorrectness = useCallback(() => {
+    if (!questionResults) return false;
+    const isOpenEnded = String(currentQuestion?.type || currentQuestion?.Type || '').toLowerCase() === 'openended';
+    const pId = getPlayerParticipantId();
+    if (pId && questionResults.participantCorrectness && typeof questionResults.participantCorrectness === 'object') {
+      const key = Object.keys(questionResults.participantCorrectness).find(
+        (k) => k.toLowerCase() === pId.toLowerCase()
+      );
+      if (key !== undefined) {
+        return Boolean(questionResults.participantCorrectness[key]);
+      }
+    }
+    if (!isOpenEnded && Array.isArray(questionResults.correctOptionIds)) {
+      return questionResults.correctOptionIds.some((id: string) =>
+        selectedOptions.some((sel) => String(sel).toLowerCase() === String(id).toLowerCase())
+      );
+    }
+    return false;
+  }, [questionResults, currentQuestion, selectedOptions]);
+
   useEffect(() => {
     if (questionResults && !audioPlayed) {
-      const isOpenEnded = String(currentQuestion?.type || currentQuestion?.Type || '').toLowerCase() === 'openended';
-
-      let isCorrect = false;
-      if (isOpenEnded) {
-        const pId = getPlayerParticipantId();
-        if (pId && questionResults.participantCorrectness) {
-          const key = Object.keys(questionResults.participantCorrectness).find(
-            (k) => k.toLowerCase() === pId.toLowerCase()
-          );
-          if (key) isCorrect = !!questionResults.participantCorrectness[key];
-        }
-      } else {
-        isCorrect = questionResults.correctOptionIds?.some((id: string) => selectedOptions.includes(id));
-      }
-
+      const isCorrect = evaluatePlayerCorrectness();
       if (isCorrect) playCorrect();
       else playWrong();
       setAudioPlayed(true);
     }
-  }, [questionResults, audioPlayed, currentQuestion, selectedOptions]);
+  }, [questionResults, audioPlayed, evaluatePlayerCorrectness]);
 
-  if (finalLeaderboard) {
+  if (Array.isArray(finalLeaderboard) && finalLeaderboard.length > 0) {
     const myRankEntry = finalLeaderboard.find((l) => {
-      const id = getPlayerParticipantId();
-      return l.ParticipantId === id || l.participantId === id;
+      const id = getPlayerParticipantId()?.toLowerCase();
+      const entryId = String(l?.ParticipantId ?? l?.participantId ?? '').toLowerCase();
+      return !!id && entryId === id;
     });
 
     let rank = myRankEntry?.Rank || myRankEntry?.rank || 999;
@@ -212,19 +267,12 @@ export default function PlayerGamePage() {
   if (questionResults) {
     const isMultiSelect = String(currentQuestion?.type || currentQuestion?.Type || '').toLowerCase() === 'multipleselect';
     const isOpenEnded = String(currentQuestion?.type || currentQuestion?.Type || '').toLowerCase() === 'openended';
-
-    let isCorrect = false;
-    if (isOpenEnded) {
-      const pId = getPlayerParticipantId();
-      if (pId && questionResults.participantCorrectness) {
-        const key = Object.keys(questionResults.participantCorrectness).find(
-          (k) => k.toLowerCase() === pId.toLowerCase()
-        );
-        if (key) isCorrect = !!questionResults.participantCorrectness[key];
-      }
-    } else {
-      isCorrect = questionResults.correctOptionIds?.some((id: string) => selectedOptions.includes(id));
-    }
+    const isCorrect = evaluatePlayerCorrectness();
+    const rawOptions = currentQuestion?.options || currentQuestion?.Options;
+    const resultOptions = Array.isArray(rawOptions) ? rawOptions : [];
+    const correctOptionIds: string[] = Array.isArray(questionResults.correctOptionIds || questionResults.CorrectOptionIds)
+      ? (questionResults.correctOptionIds || questionResults.CorrectOptionIds).map((id: any) => String(id))
+      : [];
 
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
@@ -246,17 +294,17 @@ export default function PlayerGamePage() {
           {isOpenEnded ? (
             <div className="bg-white p-8 rounded-xl shadow-2xl text-center">
               <p className="text-xl font-medium text-gray-700 mb-4">Senin Cevabın:</p>
-              <p className="text-2xl font-bold mb-4">{textAnswer}</p>
-              <p className="text-gray-600 font-medium">{questionResults.explanation || ''}</p>
+              <p className="text-2xl font-bold mb-4">{textAnswer || '—'}</p>
+              <p className="text-gray-600 font-medium">{questionResults.explanation || questionResults.Explanation || ''}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {(currentQuestion?.options || currentQuestion?.Options || []).map((option: any, optIdx: number) => {
+              {resultOptions.map((option: any, optIdx: number) => {
                 if (!option) return null;
-                const optionId = option.id ?? option.Id ?? String(optIdx);
+                const optionId = String(option.id ?? option.Id ?? optIdx);
                 const optionText = option.optionText ?? option.OptionText ?? (typeof option === 'string' ? option : `Şık ${optIdx + 1}`);
                 const isSelected = selectedOptions.includes(optionId);
-                const isCorrectOption = questionResults.correctOptionIds?.includes(optionId);
+                const isCorrectOption = correctOptionIds.includes(optionId);
 
                 const colors = ['bg-red-500', 'bg-blue-500', 'bg-yellow-500', 'bg-green-500', 'bg-purple-500', 'bg-pink-500'];
                 const baseBgClass = colors[optIdx % colors.length];
@@ -295,7 +343,7 @@ export default function PlayerGamePage() {
     );
   }
 
-  const currentPotentialScore = calculateCurrentScore(timeRemaining, timeLimit || 30);
+  const currentPotentialScore = calculateCurrentScore(displayTimeRemaining, timeLimit || 30);
 
   const isOpenEnded = String(currentQuestion?.type || currentQuestion?.Type || '').toLowerCase() === 'openended';
   const isMultiSelect = String(currentQuestion?.type || currentQuestion?.Type || '').toLowerCase() === 'multipleselect';
@@ -312,30 +360,46 @@ export default function PlayerGamePage() {
         <motion.div
           animate={{ scale: [1.1, 1] }}
           transition={{ duration: 0.3 }}
-          className={`text-3xl font-black ${timeRemaining <= 5 ? 'text-red-600 animate-pulse' : 'text-gray-800'}`}
+          className={`text-3xl font-black ${displayTimeRemaining <= 5 ? 'text-red-600 animate-pulse' : 'text-gray-800'}`}
         >
-          {timeRemaining}
+          {displayTimeRemaining}
         </motion.div>
       </div>
 
       <main className="flex-1 flex flex-col p-4 max-w-2xl mx-auto w-full">
-        {!isQuestionActive && submitted ? (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col items-center justify-center text-center">
-            <h2 className="text-3xl font-bold text-gray-800">Süre Doldu!</h2>
-            <p className="text-gray-500 mt-2">Diğer oyuncular bekleniyor...</p>
-          </motion.div>
-        ) : submitted && needsManualReview ? (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col items-center justify-center text-center">
+        {needsManualReview ? (
+          <motion.div
+            key="manual-review"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex-1 flex flex-col items-center justify-center text-center"
+          >
             <h2 className="text-3xl font-bold text-gray-800">⏳ Cevaplar değerlendiriliyor...</h2>
             <p className="text-gray-500 mt-2">Kurucu cevapları inceliyor. Lütfen bekleyin.</p>
           </motion.div>
+        ) : !isQuestionActive ? (
+          <motion.div
+            key="time-up"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex-1 flex flex-col items-center justify-center text-center"
+          >
+            <h2 className="text-3xl font-bold text-gray-800">Süre Doldu!</h2>
+            <p className="text-gray-500 mt-2">Diğer oyuncular bekleniyor...</p>
+          </motion.div>
         ) : submitted ? (
-          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring' }} className="flex-1 flex flex-col items-center justify-center text-center">
+          <motion.div
+            key="submitted"
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: 'spring' }}
+            className="flex-1 flex flex-col items-center justify-center text-center"
+          >
             <h2 className="text-3xl font-bold text-gray-800">Cevap Gönderildi!</h2>
             <p className="text-gray-500 mt-2">Sürenin bitmesi bekleniyor...</p>
           </motion.div>
         ) : (
-          <>
+          <div key={`question-${currentQuestionId || 'active'}`} className="flex-1 flex flex-col">
             <div className="text-center py-4">
               <p className="text-gray-500 font-medium">Lütfen ana ekrana (Host) bakınız.</p>
             </div>
@@ -355,7 +419,7 @@ export default function PlayerGamePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 h-64">
                 {questionOptions.map((option: any, optIdx: number) => {
                   if (!option) return null;
-                  const optionId = option.id ?? option.Id ?? String(optIdx);
+                  const optionId = String(option.id ?? option.Id ?? optIdx);
                   const optionText = option.optionText ?? option.OptionText ?? (typeof option === 'string' ? option : `Şık ${optIdx + 1}`);
                   const isSelected = selectedOptions.includes(optionId);
 
@@ -386,12 +450,12 @@ export default function PlayerGamePage() {
                 whileTap={{ scale: 0.95 }}
                 onClick={handleSubmit}
                 className="w-full bg-gray-900 text-white py-4 rounded-xl font-bold text-xl shadow"
-                disabled={selectedOptions.length === 0 && !textAnswer}
+                disabled={selectedOptions.length === 0 && !textAnswer.trim()}
               >
                 Cevabı Gönder
               </motion.button>
             </div>
-          </>
+          </div>
         )}
       </main>
     </div>

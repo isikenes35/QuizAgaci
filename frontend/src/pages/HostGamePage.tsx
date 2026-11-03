@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSessionStore } from '../stores/sessionStore';
 import { useQuestionStore } from '../stores/questionStore';
@@ -42,17 +42,27 @@ export default function HostGamePage() {
   const [pendingAnswers, setPendingAnswers] = useState<PendingAnswer[]>([]);
   const [totalQuestions, setTotalQuestions] = useState(0);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(-1);
+  const showResultsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearShowResultsTimeout = useCallback(() => {
+    if (showResultsTimeoutRef.current) {
+      clearTimeout(showResultsTimeoutRef.current);
+      showResultsTimeoutRef.current = null;
+    }
+  }, []);
 
   const handleStart = useCallback(async () => {
     if (!id) return;
     try {
+      clearShowResultsTimeout();
+      setNeedsManualReview(false);
       await api.post(`/gamesessions/${id}/next-question`);
       setViewState('question');
     } catch (e: any) {
       console.error('Start Game Error:', e.response?.data || e.message);
       alert('Failed to start next question: ' + (e.response?.data?.message || e.message));
     }
-  }, [id]);
+  }, [id, clearShowResultsTimeout, setNeedsManualReview]);
 
   const handlePause = useCallback(async () => {
     if (!id) return;
@@ -73,8 +83,9 @@ export default function HostGamePage() {
 
   const handleShowResults = useCallback(async () => {
     if (!id) return;
+    clearShowResultsTimeout();
     try { await api.post(`/gamesessions/${id}/show-results`); } catch (e) { console.error(e); }
-  }, [id]);
+  }, [id, clearShowResultsTimeout]);
 
   const handleHideImage = useCallback(async () => {
     if (!id) return;
@@ -95,40 +106,42 @@ export default function HostGamePage() {
   const handleNextQuestion = useCallback(async () => {
     if (!id) return;
     try {
+      clearShowResultsTimeout();
+      setNeedsManualReview(false);
       await api.post(`/gamesessions/${id}/next-question`);
       setViewState('question');
     } catch (e: any) {
       console.error(e);
     }
-  }, [id]);
+  }, [id, clearShowResultsTimeout, setNeedsManualReview]);
 
   const loadPendingAnswers = useCallback(async () => {
     if (!id) return;
     try {
       const answers = await getPendingAnswers(id);
-      setPendingAnswers(answers);
+      setPendingAnswers(Array.isArray(answers) ? answers : []);
     } catch (e) { console.error(e); }
   }, [id]);
 
   const handleFinishReview = useCallback(async () => {
     if (!id) return;
     try {
+      clearShowResultsTimeout();
       await resumeFromReview(id);
       setNeedsManualReview(false);
       setPendingAnswers([]);
-      setTimeout(async () => {
-        try { await api.post(`/gamesessions/${id}/show-results`); } catch (e) { console.error(e); }
-      }, 500);
+      await api.post(`/gamesessions/${id}/show-results`);
     } catch (e) { console.error(e); }
-  }, [id, setNeedsManualReview]);
+  }, [id, setNeedsManualReview, clearShowResultsTimeout]);
 
   const handleReview = useCallback(async (selectedCorrectIds: string[]) => {
     if (!id || !currentQuestion) return;
     try {
+      const maxScore = currentQuestion.maxScore ?? currentQuestion.MaxScore ?? 2000;
       await Promise.all(
         pendingAnswers.map((ans) => {
           const isCorrect = selectedCorrectIds.includes(ans.answerId);
-          const score = isCorrect ? (currentQuestion.maxScore ?? 2000) : 0;
+          const score = isCorrect ? maxScore : 0;
           return reviewAnswer(ans.answerId, { isCorrect, scoreAwarded: score });
         })
       );
@@ -163,7 +176,9 @@ export default function HostGamePage() {
                 (x: any) => x.id === q.id || x.Id === q.Id || (x.Id !== undefined && x.Id === q.id)
               );
               if (idx !== -1) setCurrentQuestionIndex(idx);
-              setCurrentQuestion(q, state.currentTimeRemaining || 30);
+              const limit = state.timeLimit || q.timeLimit || q.TimeLimit || 30;
+              const rem = typeof state.currentTimeRemaining === 'number' ? state.currentTimeRemaining : limit;
+              setCurrentQuestion(q, limit, rem);
               setAnswersCount(state.currentAnswersCount || 0);
               if (state.isPaused !== undefined) {
                 setTimerPaused(state.isPaused);
@@ -171,7 +186,13 @@ export default function HostGamePage() {
               if (state.currentTimeRemaining === null || state.currentTimeRemaining === 0) {
                 endQuestion();
               }
-              setViewState('question');
+              if (state.needsManualReview) {
+                setNeedsManualReview(true);
+                setViewState('review');
+                loadPendingAnswers();
+              } else {
+                setViewState('question');
+              }
             }
           }).catch(console.error);
         }).catch(console.error);
@@ -179,21 +200,33 @@ export default function HostGamePage() {
     }).catch(console.error);
 
     getParticipants(id).then(setParticipants).catch(console.error);
-  }, [id, setSession, setParticipants, setCurrentQuestion, setAnswersCount, endQuestion, setTimerPaused]);
+
+    return () => {
+      clearShowResultsTimeout();
+    };
+  }, [id, setSession, setParticipants, setLeaderboard, setCurrentQuestion, setAnswersCount, endQuestion, setTimerPaused, setNeedsManualReview, loadPendingAnswers, clearShowResultsTimeout]);
 
   const handlers = {
     onPlayerJoined: (p: any) => addParticipant(p),
     onQuestionStarted: (question: any, timeLimit: number) => {
+      clearShowResultsTimeout();
+      setNeedsManualReview(false);
+      setPendingAnswers([]);
       setCurrentQuestion(question, timeLimit || 30);
       setCurrentQuestionIndex((prev) => prev + 1);
       setViewState('question');
       setTimerPaused(false);
     },
     onLeaderboardUpdated: (data: any) => {
-      setLeaderboard(data);
+      clearShowResultsTimeout();
+      endQuestion();
+      setNeedsManualReview(false);
+      setLeaderboard(Array.isArray(data) ? data : []);
       setViewState('leaderboard');
     },
     onManualReviewRequired: () => {
+      clearShowResultsTimeout();
+      endQuestion();
       setNeedsManualReview(true);
       setViewState('review');
       loadPendingAnswers();
@@ -211,15 +244,21 @@ export default function HostGamePage() {
     onImageHidden: () => setIsImageHidden(true),
     onQuestionFinished: () => {
       endQuestion();
+      clearShowResultsTimeout();
       if (!useResultsStore.getState().needsManualReview && id) {
-        setTimeout(async () => {
-          try { await api.post(`/gamesessions/${id}/show-results`); } catch (e) { console.error(e); }
-        }, 1000);
+        showResultsTimeoutRef.current = setTimeout(async () => {
+          showResultsTimeoutRef.current = null;
+          if (!useResultsStore.getState().needsManualReview) {
+            try { await api.post(`/gamesessions/${id}/show-results`); } catch (e) { console.error(e); }
+          }
+        }, 500);
       }
     }
   };
 
-  useGameHubConnection(id, handlers);
+  useGameHubConnection(id, handlers, {
+    getToken: () => localStorage.getItem('token')
+  });
 
   // Timer display comes from useGameTimer in QuestionDisplay (secondsRemaining)
   // SignalR onTimerTick is the only source of truth for store updates

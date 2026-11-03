@@ -6,7 +6,7 @@ const toPascalCase = (data: CreateQuestionData) => ({
   QuestionText: data.questionText,
   Options: data.options.map(opt => ({
     OptionText: opt.optionText,
-    IsCorrect: opt.isCorrect
+    IsCorrect: data.type === 'OpenEnded' ? true : opt.isCorrect
   })),
   TimeLimit: data.timeLimit,
   MaxScore: data.maxScore,

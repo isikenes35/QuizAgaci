@@ -389,7 +389,11 @@ export default function EditQuizPage() {
                           ],
                         });
                       } else {
-                        setFormData({ ...formData, type: newType });
+                        setFormData({
+                          ...formData,
+                          type: newType,
+                          options: newType === "OpenEnded" ? formData.options.map((opt) => ({ ...opt, isCorrect: true })) : formData.options,
+                        });
                       }
                     }}
                     className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-primary-500 focus:ring-0"

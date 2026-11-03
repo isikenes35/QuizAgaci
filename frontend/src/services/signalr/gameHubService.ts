@@ -20,10 +20,13 @@ class GameHubService {
 
   private async _connectInternal(token: string, sessionId?: string) {
     if (this.connection) {
-       try { await this.connection.stop(); } catch(e){}
+      const oldConn = this.connection;
+      this.connection = null;
+      this.isConnected = false;
+      try { await oldConn.stop(); } catch (e) {}
     }
 
-    this.connection = new HubConnectionBuilder()
+    const conn = new HubConnectionBuilder()
       .withUrl(import.meta.env.VITE_SIGNALR_HUB_URL || 'http://localhost:5294/gamehub', {
         accessTokenFactory: () => token,
         skipNegotiation: true,
@@ -32,12 +35,16 @@ class GameHubService {
       .withAutomaticReconnect()
       .build();
 
-    this.connection.onreconnecting(() => {
+    this.connection = conn;
+
+    conn.onreconnecting(() => {
+      if (this.connection !== conn) return;
       console.log('SignalR reconnecting...');
       this.isConnected = false;
     });
 
-    this.connection.onreconnected(async (connectionId) => {
+    conn.onreconnected(async (connectionId) => {
+      if (this.connection !== conn) return;
       console.log('SignalR reconnected:', connectionId);
       this.isConnected = true;
       if (sessionId) {
@@ -45,23 +52,27 @@ class GameHubService {
       }
     });
 
-    this.connection.onclose(() => {
+    conn.onclose(() => {
+      if (this.connection !== conn) return;
       console.log('SignalR disconnected');
       this.isConnected = false;
       this.connectionPromise = null;
     });
 
     try {
-      await this.connection.start();
+      await conn.start();
+      if (this.connection !== conn) return;
       this.isConnected = true;
       console.log('SignalR Connected!');
-      
+
       if (sessionId) {
         await this.joinGameGroup(sessionId);
       }
     } catch (e) {
-      console.error('SignalR Connection Error: ', e);
-      this.connectionPromise = null;
+      if (this.connection === conn) {
+        console.error('SignalR Connection Error: ', e);
+        this.connectionPromise = null;
+      }
     }
   }
 
@@ -81,10 +92,11 @@ class GameHubService {
 
   public disconnect() {
     if (this.connection) {
-      this.connection.stop();
-      this.isConnected = false;
+      const oldConn = this.connection;
       this.connection = null;
+      this.isConnected = false;
       this.connectionPromise = null;
+      oldConn.stop().catch(() => {});
     }
   }
 

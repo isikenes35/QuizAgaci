@@ -1,10 +1,10 @@
-import { memo, useState } from 'react';
+import { memo, useState, useEffect } from 'react';
 import type { PendingAnswer } from '../../types/answer.types';
 
 interface ManualReviewViewProps {
   pendingAnswers: PendingAnswer[];
-  onReview: (selectedCorrectIds: string[]) => void;
-  onFinish: () => void;
+  onReview: (selectedCorrectIds: string[]) => Promise<void> | void;
+  onFinish: () => Promise<void> | void;
 }
 
 export const ManualReviewView = memo(function ManualReviewView({
@@ -13,15 +13,28 @@ export const ManualReviewView = memo(function ManualReviewView({
   onFinish
 }: ManualReviewViewProps) {
   const [selectedCorrectAnswers, setSelectedCorrectAnswers] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    setSelectedCorrectAnswers([]);
+    setIsSubmitting(false);
+  }, [pendingAnswers]);
 
   const toggleAnswer = (answerId: string) => {
+    if (isSubmitting) return;
     setSelectedCorrectAnswers((prev) =>
       prev.includes(answerId) ? prev.filter((id) => id !== answerId) : [...prev, answerId]
     );
   };
 
   const handleFinish = async () => {
-    onReview(selectedCorrectAnswers);
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await onReview(selectedCorrectAnswers);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

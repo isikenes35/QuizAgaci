@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuestionStore } from '../stores/questionStore';
 import { useSessionStore } from '../stores/sessionStore';
 import { useGameHubConnection } from '../hooks/useGameHubConnection';
-import { getSessionByCode } from '../services/api/gameApi';
+import { getSessionByCode, getSessionState } from '../services/api/gameApi';
 import { motion } from 'framer-motion';
 
 export default function GameLobbyPage() {
@@ -12,6 +12,7 @@ export default function GameLobbyPage() {
 
   const setSession = useSessionStore((s) => s.setSession);
   const setCurrentQuestion = useQuestionStore((s) => s.setCurrentQuestion);
+  const endQuestion = useQuestionStore((s) => s.endQuestion);
   const isQuestionActive = useQuestionStore((s) => s.isQuestionActive);
   const session = useSessionStore((s) => s.session);
 
@@ -38,9 +39,32 @@ export default function GameLobbyPage() {
     }
 
     if (code) {
-      getSessionByCode(code).then(setSession).catch(console.error);
+      getSessionByCode(code)
+        .then(async (s) => {
+          setSession(s);
+          if (s?.id) {
+            sessionStorage.setItem('currentSessionId', s.id);
+            const status = String((s as any).status || (s as any).Status || '').toLowerCase();
+            if (status === 'running') {
+              try {
+                const state = await getSessionState(s.id);
+                const q = state?.currentQuestion || state?.question;
+                if (q) {
+                  const limit = state.timeLimit || q.timeLimit || q.TimeLimit || 30;
+                  const rem = typeof state.currentTimeRemaining === 'number' ? state.currentTimeRemaining : limit;
+                  setCurrentQuestion(q, limit, rem);
+                  if (state.currentTimeRemaining === null || rem <= 0) endQuestion();
+                }
+              } catch {
+                // ignore state fetch error
+              }
+              navigate(`/game/${code}/play`, { replace: true });
+            }
+          }
+        })
+        .catch(console.error);
     }
-  }, [code, setSession]);
+  }, [code, setSession, setCurrentQuestion, endQuestion, navigate]);
 
   useEffect(() => {
     if (isQuestionActive) {

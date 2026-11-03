@@ -1,4 +1,5 @@
-import { memo, useState } from 'react';
+import { memo, useState, useEffect } from 'react';
+import { getImageUrl } from '../../utils/imageHelper';
 
 interface OptimizedImageProps {
   src: string;
@@ -14,12 +15,17 @@ export const OptimizedImage = memo(function OptimizedImage({
   imgClassName = ''
 }: OptimizedImageProps) {
   const [loaded, setLoaded] = useState(false);
+  const resolvedSrc = getImageUrl(src);
+
+  useEffect(() => {
+    setLoaded(false);
+  }, [resolvedSrc]);
 
   return (
     <div className={`relative ${className}`}>
       {!loaded && <div className="absolute inset-0 bg-gray-200 animate-pulse rounded-xl" />}
       <img
-        src={src}
+        src={resolvedSrc}
         alt={alt}
         loading="lazy"
         decoding="async"

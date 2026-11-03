@@ -1,5 +1,9 @@
 export const getAuthToken = (): string | null => {
-  return sessionStorage.getItem('playerToken') || localStorage.getItem('playerToken') || localStorage.getItem('token');
+  const isPlayerRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/game/');
+  if (isPlayerRoute) {
+    return sessionStorage.getItem('playerToken') || localStorage.getItem('playerToken') || localStorage.getItem('token');
+  }
+  return localStorage.getItem('token') || sessionStorage.getItem('playerToken') || localStorage.getItem('playerToken');
 };
 
 export const getPlayerParticipantId = (): string | null => {

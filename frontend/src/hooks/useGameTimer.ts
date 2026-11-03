@@ -5,6 +5,7 @@ interface UseGameTimerOptions {
   serverRemaining?: number | null;
   active?: boolean;
   paused?: boolean;
+  questionKey?: string | number | null;
   onTick?: (remaining: number) => void;
   onComplete?: () => void;
   barRef?: RefObject<HTMLElement | null>;
@@ -22,6 +23,7 @@ export function useGameTimer({
   serverRemaining,
   active = true,
   paused = false,
+  questionKey,
   onTick,
   onComplete,
   barRef
@@ -70,14 +72,16 @@ export function useGameTimer({
     [barRef]
   );
 
-  // Server tick -> re-anchor the client clock (source of truth).
+  // Server tick or new question -> re-anchor the client clock (source of truth).
   useEffect(() => {
     if (serverRemaining == null) return;
     const clamped = Math.max(0, serverRemaining);
     anchorRef.current = { at: performance.now(), remaining: clamped };
     if (clamped > 0) completedRef.current = false;
-    emitSecond(clamped);
-  }, [serverRemaining, emitSecond]);
+    lastSecondRef.current = clamped;
+    setSecondsRemaining(clamped);
+    onTickRef.current?.(clamped);
+  }, [serverRemaining, questionKey]);
 
   // Pause -> freeze at the currently interpolated value.
   // Resume -> restart the clock from that frozen value (no time lost/gained).
@@ -142,7 +146,7 @@ export function useGameTimer({
     frameId = requestAnimationFrame(frame);
 
     return () => cancelAnimationFrame(frameId);
-  }, [duration, active, barRef, emitSecond, writeBar, serverRemaining]);
+  }, [duration, active, barRef, emitSecond, writeBar, serverRemaining, questionKey]);
 
   return { secondsRemaining };
 }

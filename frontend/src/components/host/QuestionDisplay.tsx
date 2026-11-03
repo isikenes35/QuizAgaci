@@ -24,16 +24,18 @@ export const QuestionDisplay = memo(function QuestionDisplay({
   const participantsList = useSessionStore((s) => s.participants);
 
   const barRef = useRef<HTMLDivElement>(null);
+  const currentQuestionId = currentQuestion?.id ?? currentQuestion?.Id ?? null;
   const { secondsRemaining } = useGameTimer({
     duration: timeLimit || 30,
     serverRemaining: isQuestionActive ? timeRemaining : null,
     active: isQuestionActive,
     paused: isTimerPaused,
-    barRef
+    barRef,
+    questionKey: currentQuestionId
   });
 
   // Use secondsRemaining from hook for smooth display, timeRemaining from store for calculations
-  const displayTimeRemaining = secondsRemaining;
+  const displayTimeRemaining = isQuestionActive ? secondsRemaining : 0;
 
   if (!currentQuestion) return null;
 
