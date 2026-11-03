@@ -108,6 +108,7 @@ export const QuestionDisplay = memo(function QuestionDisplay({
           <OptimizedImage
             src={imageSrc}
             alt="Soru görseli"
+            className="w-full h-full"
             imgClassName="w-full h-full max-h-full max-w-full object-contain rounded-xl"
           />
         </div>

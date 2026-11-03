@@ -8,6 +8,7 @@ import { getSessionById, getParticipants, hideImage, getSessionState } from '../
 import { getQuestions } from '../services/api/questionApi';
 import { getPendingAnswers, resumeFromReview, reviewAnswer } from '../services/api/answerApi';
 import api from '../services/api/axiosConfig';
+import { getImageUrl } from '../utils/imageHelper';
 import type { HostViewState } from '../components/host/HostHeader';
 import { HostHeader } from '../components/host/HostHeader';
 import { LobbyView } from '../components/host/LobbyView';
@@ -40,9 +41,11 @@ export default function HostGamePage() {
 
   const [viewState, setViewState] = useState<HostViewState>('lobby');
   const [pendingAnswers, setPendingAnswers] = useState<PendingAnswer[]>([]);
+  const [quizQuestions, setQuizQuestions] = useState<any[]>([]);
   const [totalQuestions, setTotalQuestions] = useState(0);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(-1);
   const showResultsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const preloadedUrlsRef = useRef<Set<string>>(new Set());
 
   const clearShowResultsTimeout = useCallback(() => {
     if (showResultsTimeoutRef.current) {
@@ -168,6 +171,7 @@ export default function HostGamePage() {
       setSession(s);
       if (s.quizId) {
         getQuestions(s.quizId).then((questions) => {
+          setQuizQuestions(questions);
           setTotalQuestions(questions.length);
           getSessionState(id).then((state) => {
             if (state.currentQuestion) {
@@ -205,6 +209,49 @@ export default function HostGamePage() {
       clearShowResultsTimeout();
     };
   }, [id, setSession, setParticipants, setLeaderboard, setCurrentQuestion, setAnswersCount, endQuestion, setTimerPaused, setNeedsManualReview, loadPendingAnswers, clearShowResultsTimeout]);
+
+  // Sliding-window preloader: preload the next 3 upcoming question images sequentially
+  useEffect(() => {
+    if (quizQuestions.length === 0) return;
+    let cancelled = false;
+
+    const startIdx = Math.max(0, currentQuestionIndex + 1);
+    const endIdx = Math.min(quizQuestions.length, startIdx + 3);
+    const urlsToPreload: string[] = [];
+
+    for (let i = startIdx; i < endIdx; i++) {
+      const q = quizQuestions[i];
+      const rawPath = q?.imagePath || q?.ImagePath;
+      if (rawPath) {
+        const url = getImageUrl(rawPath);
+        if (url && !preloadedUrlsRef.current.has(url)) {
+          urlsToPreload.push(url);
+        }
+      }
+    }
+
+    const preloadSequentially = async () => {
+      for (const url of urlsToPreload) {
+        if (cancelled) break;
+        await new Promise<void>((resolve) => {
+          const img = new Image();
+          img.decoding = 'async';
+          img.onload = () => {
+            preloadedUrlsRef.current.add(url);
+            resolve();
+          };
+          img.onerror = () => resolve();
+          img.src = url;
+        });
+      }
+    };
+
+    preloadSequentially();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [quizQuestions, currentQuestionIndex]);
 
   const handlers = {
     onPlayerJoined: (p: any) => addParticipant(p),
