@@ -1,5 +1,5 @@
 import api from './axiosConfig';
-import type { GameSession, GameParticipant, JoinGameData } from '../../types/game.types';
+import type { GameSession, GameParticipant, JoinGameData, JoinGameResponse } from '../../types/game.types';
 
 export const startGameSession = async (quizId: string): Promise<GameSession> => {
   const response = await api.post('/gamesessions/start', JSON.stringify(quizId), {
@@ -24,7 +24,7 @@ export const getParticipants = async (sessionId: string): Promise<GameParticipan
 };
 
 // Handled in AuthService in backend, but logically put here:
-export const joinGame = async (data: JoinGameData): Promise<{ token: string }> => {
+export const joinGame = async (data: JoinGameData): Promise<JoinGameResponse> => {
   const response = await api.post('/auth/join-game', data);
   return response.data;
 };

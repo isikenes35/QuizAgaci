@@ -17,4 +17,11 @@ export interface GameParticipant {
 export interface JoinGameData {
   gameCode: string;
   nickname: string;
+  sessionToken?: string;
+}
+
+export interface JoinGameResponse {
+  token: string;
+  sessionToken?: string;
+  participantId?: string;
 }

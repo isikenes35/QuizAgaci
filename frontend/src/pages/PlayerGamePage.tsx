@@ -84,6 +84,41 @@ export default function PlayerGamePage() {
     }
   }, [sessionId, currentQuestion, selectedOptions, textAnswer]);
 
+  const syncSessionState = useCallback(async () => {
+    if (!sessionId) return;
+    try {
+      const state = await getSessionState(sessionId);
+      if (state.currentQuestion) {
+        const qTimeLimit = state.timeLimit || state.currentQuestion?.timeLimit || state.currentQuestion?.TimeLimit || 30;
+        const remaining = typeof state.currentTimeRemaining === 'number' ? state.currentTimeRemaining : 0;
+        setCurrentQuestion(state.currentQuestion, qTimeLimit, remaining);
+        if (state.isPaused !== undefined) {
+          setTimerPaused(state.isPaused);
+        }
+        if (state.currentTimeRemaining === null || state.currentTimeRemaining <= 0) {
+          endQuestion();
+        }
+        setIsImageHidden(Boolean(state.isImageHidden));
+        setSubmitted(Boolean(state.hasSubmitted));
+        if (state.submittedTextAnswer) {
+          setTextAnswer(state.submittedTextAnswer);
+        }
+        if (state.submittedOptionIdsJson) {
+          try {
+            const parsed = JSON.parse(state.submittedOptionIdsJson);
+            if (Array.isArray(parsed)) setSelectedOptions(parsed);
+          } catch {
+            // ignore malformed JSON
+          }
+        }
+        useResultsStore.getState().clearQuestionResults();
+        useResultsStore.getState().setNeedsManualReview(Boolean(state.needsManualReview));
+      }
+    } catch (err) {
+      console.error('Failed to sync session state:', err);
+    }
+  }, [sessionId, setCurrentQuestion, endQuestion, setIsImageHidden, setTimerPaused]);
+
   const handlers = {
     onQuestionStarted: (question: any, qTimeLimit: number) => {
       const limit = qTimeLimit || question?.timeLimit || question?.TimeLimit || 30;
@@ -123,6 +158,10 @@ export default function PlayerGamePage() {
       setCurrentQuestion(null, 0);
       setNeedsManualReview(false);
       setFinalLeaderboard(Array.isArray(data) ? data : []);
+    },
+    onReconnected: () => {
+      console.log('[PlayerGamePage] SignalR reconnected. Re-syncing state...');
+      syncSessionState();
     }
   };
 
@@ -132,37 +171,8 @@ export default function PlayerGamePage() {
   });
 
   useEffect(() => {
-    if (sessionId) {
-      getSessionState(sessionId).then((state) => {
-        if (state.currentQuestion) {
-          const qTimeLimit = state.timeLimit || state.currentQuestion?.timeLimit || state.currentQuestion?.TimeLimit || 30;
-          const remaining = state.currentTimeRemaining ?? 0;
-          setCurrentQuestion(state.currentQuestion, qTimeLimit, remaining);
-          if (state.isPaused !== undefined) {
-            setTimerPaused(state.isPaused);
-          }
-          if (state.currentTimeRemaining === null || state.currentTimeRemaining <= 0) {
-            endQuestion();
-          }
-          setIsImageHidden(Boolean(state.isImageHidden));
-          setSubmitted(Boolean(state.hasSubmitted));
-          if (state.submittedTextAnswer) {
-            setTextAnswer(state.submittedTextAnswer);
-          }
-          if (state.submittedOptionIdsJson) {
-            try {
-              const parsed = JSON.parse(state.submittedOptionIdsJson);
-              if (Array.isArray(parsed)) setSelectedOptions(parsed);
-            } catch {
-              // ignore malformed JSON
-            }
-          }
-          useResultsStore.getState().clearQuestionResults();
-          useResultsStore.getState().setNeedsManualReview(Boolean(state.needsManualReview));
-        }
-      }).catch(console.error);
-    }
-  }, [sessionId, setCurrentQuestion, updateTimer, endQuestion, setIsImageHidden, setTimerPaused]);
+    syncSessionState();
+  }, [syncSessionState]);
 
   const timerDuration = timeLimit || 30;
   const currentQuestionId = currentQuestion?.id || currentQuestion?.Id || null;

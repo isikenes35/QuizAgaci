@@ -23,3 +23,6 @@ stats.html
 *.njsproj
 *.sln
 *.sw?
+sim-players.mjs
+sim-ui-players.mjs
+*.png

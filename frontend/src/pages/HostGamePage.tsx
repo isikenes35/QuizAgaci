@@ -300,6 +300,17 @@ export default function HostGamePage() {
           }
         }, 500);
       }
+    },
+    onReconnected: () => {
+      console.log('[HostGamePage] SignalR reconnected. Re-fetching state and participants...');
+      if (id) {
+        getParticipants(id).then(setParticipants).catch(console.error);
+        getSessionState(id).then((state) => {
+          if (state?.currentAnswersCount !== undefined) {
+            setAnswersCount(state.currentAnswersCount);
+          }
+        }).catch(console.error);
+      }
     }
   };
 

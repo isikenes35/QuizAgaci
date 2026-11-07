@@ -16,6 +16,7 @@ export interface GameHubHandlers {
   onGameResumed?: () => void;
   onImageHidden?: () => void;
   onGameEnded?: (finalLeaderboard: any) => void;
+  onReconnected?: () => void;
 }
 
 interface UseGameHubConnectionOptions {
@@ -91,7 +92,9 @@ export function useGameHubConnection(
       () => gameHubService.onGameResumed(() => handlersRef.current.onGameResumed?.()),
       () => gameHubService.onImageHidden(() => handlersRef.current.onImageHidden?.()),
       () =>
-        gameHubService.onGameEnded((data) => handlersRef.current.onGameEnded?.(data))
+        gameHubService.onGameEnded((data) => handlersRef.current.onGameEnded?.(data)),
+      () =>
+        gameHubService.onReconnected(() => handlersRef.current.onReconnected?.())
     ];
 
     gameHubService

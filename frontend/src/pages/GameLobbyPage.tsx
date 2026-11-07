@@ -4,6 +4,7 @@ import { useQuestionStore } from '../stores/questionStore';
 import { useSessionStore } from '../stores/sessionStore';
 import { useGameHubConnection } from '../hooks/useGameHubConnection';
 import { getSessionByCode, getSessionState } from '../services/api/gameApi';
+import { getSavedPlayerSession } from '../utils/tokenHelper';
 import { motion } from 'framer-motion';
 
 export default function GameLobbyPage() {
@@ -27,14 +28,23 @@ export default function GameLobbyPage() {
   const sessionId = session?.id;
 
   useGameHubConnection(sessionId, handlers, {
-    getToken: () => sessionStorage.getItem('playerToken'),
+    getToken: () => sessionStorage.getItem('playerToken') || localStorage.getItem('playerToken'),
     enabled: !!sessionId
   });
 
   useEffect(() => {
-    const token = sessionStorage.getItem('playerToken');
+    let token = sessionStorage.getItem('playerToken') || localStorage.getItem('playerToken');
+    if (!token && code) {
+      const saved = getSavedPlayerSession(code);
+      if (saved?.token) {
+        token = saved.token;
+        sessionStorage.setItem('playerToken', token);
+        localStorage.setItem('playerToken', token);
+      }
+    }
+
     if (!token) {
-      window.location.href = '/';
+      window.location.href = code ? `/?code=${encodeURIComponent(code)}` : '/';
       return;
     }
 

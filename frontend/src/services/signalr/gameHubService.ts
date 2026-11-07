@@ -4,6 +4,7 @@ class GameHubService {
   private connection: HubConnection | null = null;
   private isConnected = false;
   private connectionPromise: Promise<void> | null = null;
+  private reconnectedCallbacks: Set<() => void> = new Set();
 
   public async connect(token: string, sessionId?: string) {
     if (this.connectionPromise) {
@@ -29,10 +30,9 @@ class GameHubService {
     const conn = new HubConnectionBuilder()
       .withUrl(import.meta.env.VITE_SIGNALR_HUB_URL || 'http://localhost:5294/gamehub', {
         accessTokenFactory: () => token,
-        skipNegotiation: true,
-        transport: HttpTransportType.WebSockets
+        transport: HttpTransportType.WebSockets | HttpTransportType.ServerSentEvents | HttpTransportType.LongPolling
       })
-      .withAutomaticReconnect()
+      .withAutomaticReconnect([0, 1000, 2000, 4000, 8000])
       .build();
 
     this.connection = conn;
@@ -50,6 +50,13 @@ class GameHubService {
       if (sessionId) {
         await this.joinGameGroup(sessionId);
       }
+      this.reconnectedCallbacks.forEach((cb) => {
+        try {
+          cb();
+        } catch (err) {
+          console.error('Error in onReconnected callback:', err);
+        }
+      });
     });
 
     conn.onclose(() => {
@@ -100,7 +107,14 @@ class GameHubService {
     }
   }
 
-  // Example Event Listener setup
+  public onReconnected(callback: () => void): () => void {
+    this.reconnectedCallbacks.add(callback);
+    return () => {
+      this.reconnectedCallbacks.delete(callback);
+    };
+  }
+
+  // Event Listeners
   public onPlayerJoined(callback: (participant: any) => void) {
     this.connection?.off('PlayerJoined');
     this.connection?.on('PlayerJoined', callback);
@@ -111,7 +125,7 @@ class GameHubService {
     this.connection?.on('QuestionStarted', callback);
   }
 
-public onTimerTick(callback: (data: { remainingSeconds: number }) => void) {
+  public onTimerTick(callback: (data: { remainingSeconds: number }) => void) {
     this.connection?.off('TimerTick');
     this.connection?.on('TimerTick', callback);
   }
