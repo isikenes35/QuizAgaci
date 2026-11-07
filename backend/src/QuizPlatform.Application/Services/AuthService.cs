@@ -82,15 +82,30 @@ public class AuthService : IAuthService
                 
         if (session == null) throw new InvalidOperationException("Game not found or finished.");
 
-        // Nickname uniqueness check
+        // Nickname uniqueness check & Reconnect check
         var nickname = request.Nickname.Trim();
         var existingParticipant = await _context.GameParticipants
             .FirstOrDefaultAsync(p => p.GameSessionId == session.Id && p.Nickname == nickname);
 
         if (existingParticipant != null)
         {
-            // Plan decision: Block duplicate nicknames with clear error
-            throw new InvalidOperationException("Nickname already taken in this game session.");
+            var requestedSessionToken = request.SessionToken?.Trim();
+            if (!string.IsNullOrEmpty(requestedSessionToken) && existingParticipant.SessionToken == requestedSessionToken)
+            {
+                existingParticipant.IsConnected = true;
+                existingParticipant.LastSeenAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync(default);
+
+                var reconnectedToken = _jwtProvider.GeneratePlayerToken(existingParticipant);
+                return new AuthResponseDto 
+                { 
+                    Token = reconnectedToken,
+                    SessionToken = existingParticipant.SessionToken,
+                    ParticipantId = existingParticipant.Id
+                };
+            }
+
+            throw new InvalidOperationException("Bu rumuz bu oyunda zaten kullanımda. Eğer daha önce katıldıysanız lütfen aynı tarayıcı sekmesini kullanın veya farklı bir rumuz deneyin.");
         }
 
         var participant = new GameParticipant
@@ -111,6 +126,11 @@ public class AuthService : IAuthService
         await _signalRNotifier.NotifyPlayerJoinedAsync(session.Id, participant);
 
         var token = _jwtProvider.GeneratePlayerToken(participant);
-        return new AuthResponseDto { Token = token };
+        return new AuthResponseDto 
+        { 
+            Token = token,
+            SessionToken = participant.SessionToken,
+            ParticipantId = participant.Id
+        };
     }
 }
