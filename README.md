@@ -50,7 +50,8 @@ Requirements: .NET 8 SDK and a MySQL server.
 
 1. Set these values in `backend/src/QuizPlatform.API/appsettings.json`. Environment variables also work, for example `Jwt__Secret`.
    - `ConnectionStrings:DefaultConnection`: your MySQL connection string
-   - `Jwt:Secret`, `Jwt:Issuer`, `Jwt:Audience`
+   - `Jwt:Issuer`, `Jwt:Audience`
+   - `Jwt:Secret`: leave it empty in the file and set it with the `Jwt__Secret` environment variable (a random string of at least 32 characters). The app will not start without it.
    - `Cors:AllowedOrigins`: the frontend URL, for example `http://localhost:5173`
    - `Cloudinary:*`: only needed for question image uploads
 2. Run the API. Database migrations are applied when the app starts.
