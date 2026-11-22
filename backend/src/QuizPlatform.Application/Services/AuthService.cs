@@ -15,6 +15,9 @@ public class AuthService : IAuthService
     private readonly IJwtProvider _jwtProvider;
     private readonly ISignalRNotifier _signalRNotifier;
 
+    // How long a seat must be offline before someone without its session token may take it over.
+    private static readonly TimeSpan SeatReclaimGracePeriod = TimeSpan.FromSeconds(20);
+
     public AuthService(IApplicationDbContext context, IPasswordHasher passwordHasher, IJwtProvider jwtProvider, ISignalRNotifier signalRNotifier)
     {
         _context = context;
@@ -105,7 +108,27 @@ public class AuthService : IAuthService
                 };
             }
 
-            throw new InvalidOperationException("Bu rumuz bu oyunda zaten kullanımda. Eğer daha önce katıldıysanız lütfen aynı tarayıcı sekmesini kullanın veya farklı bir rumuz deneyin.");
+            // The seat's owner lost their browser storage (QR re-scan opened another browser,
+            // private tab, etc.). If the seat has been offline for a while, hand it over with
+            // its score intact and a fresh session token, so the old device can no longer resume.
+            var lastSeen = existingParticipant.LastSeenAt ?? existingParticipant.JoinedAt;
+            var offlineFor = DateTime.UtcNow - lastSeen;
+            if (!existingParticipant.IsConnected && offlineFor >= SeatReclaimGracePeriod)
+            {
+                existingParticipant.SessionToken = Guid.NewGuid().ToString("N");
+                existingParticipant.LastSeenAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync(default);
+
+                var reclaimedToken = _jwtProvider.GeneratePlayerToken(existingParticipant);
+                return new AuthResponseDto
+                {
+                    Token = reclaimedToken,
+                    SessionToken = existingParticipant.SessionToken,
+                    ParticipantId = existingParticipant.Id
+                };
+            }
+
+            throw new InvalidOperationException("Bu rumuz şu an oyunda bağlı görünüyor. Az önce koptuysan 20 saniye bekleyip aynı isimle tekrar dene ya da farklı bir rumuz seç.");
         }
 
         var participant = new GameParticipant
