@@ -43,7 +43,10 @@ public class JwtProvider : IJwtProvider
             new(ClaimTypes.Role, "Player")
         };
 
-        return CreateToken(claims);
+        // A player token must outlive the whole event: SignalR reconnects reuse it,
+        // so an expired token silently locks the player out mid-game.
+        var playerExpiryMinutes = int.Parse(_configuration["Jwt:PlayerTokenExpirationMinutes"] ?? "720");
+        return CreateToken(claims, playerExpiryMinutes);
     }
 
     public string? ValidateToken(string token)
@@ -77,7 +80,7 @@ public class JwtProvider : IJwtProvider
         }
     }
 
-    private string CreateToken(IEnumerable<Claim> claims)
+    private string CreateToken(IEnumerable<Claim> claims, int? expiryMinutesOverride = null)
     {
         var secret = _configuration["Jwt:Secret"] ?? throw new InvalidOperationException("JWT Secret is not configured");
         var issuer = _configuration["Jwt:Issuer"];
@@ -85,7 +88,7 @@ public class JwtProvider : IJwtProvider
         
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-        var expiryMinutes = int.Parse(_configuration["Jwt:AccessTokenExpirationMinutes"] ?? "60");
+        var expiryMinutes = expiryMinutesOverride ?? int.Parse(_configuration["Jwt:AccessTokenExpirationMinutes"] ?? "60");
 
         var token = new JwtSecurityToken(
             issuer: issuer,
