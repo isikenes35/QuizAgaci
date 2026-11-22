@@ -4,6 +4,7 @@ import { useAuthStore } from './stores/authStore';
 
 // Layouts
 import DashboardLayout from './components/layout/DashboardLayout';
+import ConnectionBanner from './components/common/ConnectionBanner';
 
 // Pages - lazy loaded for route-based code splitting
 const HomePage = lazy(() => import('./pages/HomePage'));
@@ -42,6 +43,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <ConnectionBanner />
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={
