@@ -2,7 +2,7 @@
 
 A real-time multiplayer quiz platform built for Evrim Ağacı İzmir community events. The host shows the questions on a big screen, and players join from their phones with a game code or a QR code.
 
-Live site: [quiz-agaci.vercel.app](https://quiz-agaci.vercel.app)
+Live site: [quizagaci.com.tr](https://www.quizagaci.com.tr)
 
 It was used at a live Evrim Ağacı İzmir event with 32 players.
 
